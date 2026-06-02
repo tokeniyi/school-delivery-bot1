@@ -6,44 +6,55 @@ import asyncio
 sys.path.append(r"c:\Users\user\Documents\htdocs\Repo\telegram-bot\bot1\school-delivery-bot")
 
 from database.db import async_session
-from database.crud import create_user, get_user_by_telegram_id, update_user_role, create_student_request
+from database.crud import create_user, update_user_role, create_parent_travel, get_parent_travel, update_parent_travel_status
+from database.crud import create_tables
 
 async def test():
-    print("Beginning CRUD operations test assertions...")
+    print("Beginning Parent CRUD operations test assertions...")
+    
+    # 1. Initialize Tables (ensuring migrations trigger)
+    await create_tables()
+    print("  - Database tables verified and initialized.")
+
     async with async_session() as session:
-        # 1. Create a test user
-        user = await create_user(session, 123456789, "test_user", "Test Full Name")
+        # 2. Create a test parent user
+        user = await create_user(session, 987654321, "parent_user", "Parent Full Name")
         print(f"  - Created/updated user: {user}")
-        assert user.telegram_id == 123456789
+        assert user.telegram_id == 987654321
         
-        # 2. Get user by telegram_id
-        fetched_user = await get_user_by_telegram_id(session, 123456789)
-        print(f"  - Fetched user by telegram_id: {fetched_user}")
-        assert fetched_user is not None
-        assert fetched_user.username == "test_user"
+        # 3. Update user role to parent
+        updated_user = await update_user_role(session, 987654321, "parent")
+        print(f"  - Updated user role to parent: {updated_user}")
+        assert updated_user.role == "parent"
         
-        # 3. Update user role
-        updated_user = await update_user_role(session, 123456789, "student")
-        print(f"  - Updated user role: {updated_user}")
-        assert updated_user.role == "student"
-        
-        # 4. Create a student delivery request linked to the user
-        req = await create_student_request(
+        # 4. Create a parent travel availability schedule linked to the user
+        travel = await create_parent_travel(
             session=session,
-            telegram_id=123456789,
-            item_description="Textbooks",
-            pickup_location="Lekki",
-            destination_school="Babcock University",
-            delivery_date="2026-06-15"
+            telegram_id=987654321,
+            origin_location="Ikeja",
+            destination_school="Covenant University",
+            travel_date="2026-06-20",
+            can_carry_packages=True
         )
-        print(f"  - Created student request: {req}")
-        assert req.item_description == "Textbooks"
-        assert req.pickup_location == "Lekki"
-        assert req.destination_school == "Babcock University"
-        assert req.delivery_date == "2026-06-15"
-        assert req.status == "pending"
+        print(f"  - Created travel availability: {travel}")
+        assert travel.origin_location == "Ikeja"
+        assert travel.destination_school == "Covenant University"
+        assert travel.travel_date == "2026-06-20"
+        assert travel.can_carry_packages is True
+        assert travel.status == "available"
         
-        print("Success: All CRUD operational assertions passed!")
+        # 5. Fetch travel records by telegram ID
+        records = await get_parent_travel(session, 987654321)
+        print(f"  - Fetched parent travels: {records}")
+        assert len(records) > 0
+        assert any(r.origin_location == "Ikeja" for r in records)
+        
+        # 6. Update travel status
+        updated_travel = await update_parent_travel_status(session, travel.id, "matched")
+        print(f"  - Updated travel status: {updated_travel}")
+        assert updated_travel.status == "matched"
+        
+        print("Success: All Parent CRUD operational assertions passed!")
 
 if __name__ == "__main__":
     asyncio.run(test())

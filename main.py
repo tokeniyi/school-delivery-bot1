@@ -11,6 +11,7 @@ from config import BOT_TOKEN
 from database.crud import create_tables
 from bot.handlers.start import router as start_router
 from bot.handlers.student import router as student_router
+from bot.handlers.parent import router as parent_router
 
 # Configure logging to stdout
 logging.basicConfig(
@@ -36,6 +37,8 @@ async def main() -> None:
     # 3. Register routers
     dp.include_router(start_router)
     dp.include_router(student_router)
+    dp.include_router(parent_router)
+
 
     # 4. Start polling
     # Print the specific expected text for verification

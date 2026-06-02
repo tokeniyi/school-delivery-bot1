@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import engine
-from database.models import Base, User, StudentRequest
+from database.models import Base, User, StudentRequest, ParentTravel
 
 async def create_tables():
     """Create all database tables asynchronously on startup if they don't exist."""
@@ -69,4 +69,51 @@ async def create_student_request(
     await session.commit()
     await session.refresh(new_request)
     return new_request
+
+async def create_parent_travel(
+    session: AsyncSession,
+    telegram_id: int,
+    origin_location: str,
+    destination_school: str,
+    travel_date: str,
+    can_carry_packages: bool
+) -> ParentTravel:
+    """Save parent travel availability schedule."""
+    user = await get_user_by_telegram_id(session, telegram_id)
+    if not user:
+        raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
+
+    new_travel = ParentTravel(
+        user_id=user.id,
+        origin_location=origin_location,
+        destination_school=destination_school,
+        travel_date=travel_date,
+        can_carry_packages=can_carry_packages,
+        status="available"
+    )
+    session.add(new_travel)
+    await session.commit()
+    await session.refresh(new_travel)
+    return new_travel
+
+async def get_parent_travel(session: AsyncSession, telegram_id: int) -> list[ParentTravel]:
+    """Retrieve all travel availability schedules submitted by a specific user."""
+    user = await get_user_by_telegram_id(session, telegram_id)
+    if not user:
+        return []
+    stmt = select(ParentTravel).where(ParentTravel.user_id == user.id)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+async def update_parent_travel_status(session: AsyncSession, travel_id: int, status: str) -> ParentTravel | None:
+    """Update status of a travel record."""
+    stmt = select(ParentTravel).where(ParentTravel.id == travel_id)
+    result = await session.execute(stmt)
+    travel = result.scalar_one_or_none()
+    if travel:
+        travel.status = status
+        await session.commit()
+        await session.refresh(travel)
+    return travel
+
 

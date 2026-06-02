@@ -22,12 +22,6 @@ async def student_role_selected(message: Message, state: FSMContext) -> None:
         "Let's create your delivery request.\n\n"
         "What item would you like delivered?"
     )
-
-@router.message(F.text.contains("Parent"))
-async def parent_role_selected(message: Message) -> None:
-    """Triggered when user selects the Parent role. Temporary MVP placeholder."""
-    await message.answer("Coming soon.")
-
 @router.message(StudentRequestStates.item_description)
 async def process_item_description(message: Message, state: FSMContext) -> None:
     """Collects and validates the item description."""
