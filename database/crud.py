@@ -1,7 +1,9 @@
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from database.db import engine
-from database.models import Base, User, StudentRequest, ParentTravel
+from database.models import Base, User, StudentRequest, ParentTravel, Match
 
 async def create_tables():
     """Create all database tables asynchronously on startup if they don't exist."""
@@ -116,4 +118,79 @@ async def update_parent_travel_status(session: AsyncSession, travel_id: int, sta
         await session.refresh(travel)
     return travel
 
+# ===== Match CRUD Operations =====
 
+async def match_exists(session: AsyncSession, request_id: int, travel_id: int) -> bool:
+    """Check if a match between a specific request and travel already exists."""
+    stmt = select(Match).where(
+        Match.student_request_id == request_id,
+        Match.parent_travel_id == travel_id
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
+async def create_match(session: AsyncSession, request_id: int, travel_id: int) -> Match:
+    """Create a new potential match record."""
+    new_match = Match(
+        student_request_id=request_id,
+        parent_travel_id=travel_id,
+        status="pending_review"
+    )
+    session.add(new_match)
+    await session.commit()
+    await session.refresh(new_match)
+    return new_match
+
+async def get_pending_matches(session: AsyncSession) -> list[Match]:
+    """Fetch all matches with status 'pending_review', eagerly loading related objects."""
+    stmt = (
+        select(Match)
+        .where(Match.status == "pending_review")
+        .options(
+            selectinload(Match.student_request).selectinload(StudentRequest.user),
+            selectinload(Match.parent_travel).selectinload(ParentTravel.user)
+        )
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+async def get_match_by_id(session: AsyncSession, match_id: int) -> Match | None:
+    """Retrieve a specific match by ID with eager loading of related request, travel, and users."""
+    stmt = (
+        select(Match)
+        .where(Match.id == match_id)
+        .options(
+            selectinload(Match.student_request).selectinload(StudentRequest.user),
+            selectinload(Match.parent_travel).selectinload(ParentTravel.user)
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+async def approve_match(session: AsyncSession, match_id: int) -> Match | None:
+    """Approve a match: set match to 'approved', student request to 'matched', parent travel to 'matched'."""
+    match = await get_match_by_id(session, match_id)
+    if not match:
+        return None
+
+    match.status = "approved"
+    match.reviewed_at = datetime.utcnow()
+    match.student_request.status = "matched"
+    match.parent_travel.status = "matched"
+
+    await session.commit()
+    await session.refresh(match)
+    return match
+
+async def reject_match(session: AsyncSession, match_id: int) -> Match | None:
+    """Reject a match: set match to 'rejected'. Request and travel remain unchanged."""
+    match = await get_match_by_id(session, match_id)
+    if not match:
+        return None
+
+    match.status = "rejected"
+    match.reviewed_at = datetime.utcnow()
+
+    await session.commit()
+    await session.refresh(match)
+    return match

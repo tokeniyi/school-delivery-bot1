@@ -1,11 +1,16 @@
+import logging
 from datetime import datetime, date
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database.db import async_session
-from database.crud import update_user_role, create_student_request
+from database.crud import update_user_role, create_student_request, get_match_by_id
 from bot.states.student_states import StudentRequestStates
+from services.matching import find_matches
+from services.notifications import notify_admin_match
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -125,3 +130,14 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
         "Status:\nPending Review"
     )
     await message.answer(confirmation_text)
+
+    # 7. Trigger automatic matching
+    try:
+        new_matches = await find_matches()
+        for match in new_matches:
+            async with async_session() as session:
+                loaded_match = await get_match_by_id(session, match.id)
+                if loaded_match:
+                    await notify_admin_match(loaded_match)
+    except Exception as e:
+        logger.error(f"Error during automatic matching: {e}")

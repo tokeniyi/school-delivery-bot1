@@ -1,4 +1,5 @@
-from sqlalchemy import BigInteger, String, ForeignKey, Boolean
+from datetime import datetime
+from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -62,4 +63,20 @@ class ParentTravel(Base):
     def __repr__(self) -> str:
         return f"<ParentTravel id={self.id} user_id={self.user_id} origin={self.origin_location} status={self.status}>"
 
+class Match(Base):
+    """Match database model to store potential matches between student requests and parent travels."""
+    __tablename__ = "matches"
 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_request_id: Mapped[int] = mapped_column(ForeignKey("student_requests.id"), nullable=False)
+    parent_travel_id: Mapped[int] = mapped_column(ForeignKey("parent_travels.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String, default="pending_review", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    student_request: Mapped["StudentRequest"] = relationship()
+    parent_travel: Mapped["ParentTravel"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<Match id={self.id} request={self.student_request_id} travel={self.parent_travel_id} status={self.status}>"

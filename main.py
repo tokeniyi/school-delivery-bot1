@@ -12,6 +12,7 @@ from database.crud import create_tables
 from bot.handlers.start import router as start_router
 from bot.handlers.student import router as student_router
 from bot.handlers.parent import router as parent_router
+from bot.handlers.admin import router as admin_router
 
 # Configure logging to stdout
 logging.basicConfig(
@@ -38,6 +39,7 @@ async def main() -> None:
     dp.include_router(start_router)
     dp.include_router(student_router)
     dp.include_router(parent_router)
+    dp.include_router(admin_router)
 
 
     # 4. Start polling
