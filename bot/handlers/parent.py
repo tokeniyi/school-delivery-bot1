@@ -154,12 +154,23 @@ async def process_can_carry_packages(message: Message, state: FSMContext) -> Non
     # Trigger automatic matching
     try:
         candidates = await find_matches()
+        if not candidates:
+            logger.info("No matching student found yet for this travel")
+            return
+        
         for req_id, trv_id in candidates:
             async with async_session() as session:
+                # Create match with race condition prevention
                 new_match = await create_match(session, req_id, trv_id)
                 if new_match:
+                    # Load match with relationships for notification
                     loaded_match = await get_match_by_id(session, new_match.id)
                     if loaded_match:
                         await notify_admin_match(loaded_match)
+                else:
+                    logger.warning(f"Could not persist match (duplicate): Req#{req_id} ↔ Travel#{trv_id}")
     except Exception as e:
-        logger.error(f"Error during automatic matching: {e}")
+        logger.error(f"Error during automatic matching: {e}", exc_info=True)
+        await message.answer(
+            "⚠️ Your travel has been saved. An admin will review matching requests shortly."
+        )
