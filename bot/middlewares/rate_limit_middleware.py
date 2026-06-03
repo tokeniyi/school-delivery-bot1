@@ -9,8 +9,8 @@ from aiogram.types import Message, TelegramObject
 logger = logging.getLogger(__name__)
 
 # Configuration
-_MAX_REQUESTS = 5        # maximum allowed requests
-_WINDOW_SECONDS = 60     # per this many seconds
+_MAX_REQUESTS = 15        # maximum allowed requests
+_WINDOW_SECONDS = 10     # per this many seconds
 _RATE_LIMIT_REPLY = "⚠️ Too many requests. Please wait a moment before trying again."
 
 

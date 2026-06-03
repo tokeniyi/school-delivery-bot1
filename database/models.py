@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -102,8 +102,15 @@ class Match(Base):
     status: Mapped[str] = mapped_column(
         String, default=MatchStatus.PENDING_REVIEW.value, nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
 
     # Relationships
     student_request: Mapped["StudentRequest"] = relationship()
@@ -127,7 +134,11 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String, nullable=False)
     entity_type: Mapped[str] = mapped_column(String, nullable=False)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 
     def __repr__(self) -> str:
         return (
