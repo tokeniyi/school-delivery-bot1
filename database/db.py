@@ -1,11 +1,14 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from config import DATABASE_URL
 
-# Async SQLite connection URL
-# school_delivery.db will be created in the directory from which the application is run (project root)
-DATABASE_URL = "sqlite+aiosqlite:///school_delivery.db"
-
-# Create async engine. echo=True prints SQL queries to console (useful for dev/debugging)
-engine = create_async_engine(DATABASE_URL, echo=True)
+# Create async PostgreSQL engine.
+# pool_pre_ping=True validates connections before use to recover from stale connections.
+# echo=False in production; set echo=True only for debug sessions.
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+)
 
 # Configure the async session factory
 async_session = async_sessionmaker(

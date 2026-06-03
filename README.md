@@ -1,102 +1,260 @@
 # SchoolBridge Telegram Bot (SchoolRelay)
 
-SchoolBridge is a Telegram bot designed to safely and efficiently connect students who need items delivered with trusted parent travelers. 
+SchoolBridge is a Telegram bot that safely connects students who need items delivered with trusted parent travelers heading to the same school.
 
-The Telegram bot itself is named **SchoolRelay** (`@SchoolRelay_Bot`).
+The Telegram bot is named **SchoolRelay** (`@SchoolRelay_Bot`).
 
-## Project Overview
+---
 
-This repository contains the foundation and database implementation of the SchoolBridge Telegram Bot.
-
-### Project Directory Structure
+## Project Structure
 
 ```text
 school-delivery-bot/
 │
 ├── bot/
 │   ├── handlers/
-│   │   └── start.py
-│   │
+│   │   ├── admin.py        # Admin commands: /admin_matches, /health
+│   │   ├── parent.py       # Parent travel registration flow
+│   │   ├── start.py        # /start command
+│   │   └── student.py      # Student request flow
 │   ├── keyboards/
-│   ├── states/
-│   └── middlewares/
+│   ├── middlewares/
+│   │   ├── error_middleware.py       # Global exception handler
+│   │   └── rate_limit_middleware.py  # 5 req/min per user
+│   └── states/
 │
 ├── database/
-│   ├── db.py
-│   ├── models.py
-│   └── crud.py
+│   ├── crud.py     # All database operations
+│   ├── db.py       # SQLAlchemy async engine (PostgreSQL)
+│   ├── enums.py    # RequestStatus, TravelStatus, MatchStatus
+│   └── models.py   # ORM models + indexes + AuditLog
+│
+├── migrations/          # Alembic migrations
+│   ├── versions/
+│   ├── env.py
+│   └── script.py.mako
+│
+├── services/
+│   ├── matching.py       # SQL JOIN-based match finder
+│   └── notifications.py  # Telegram notifications with retry logic
+│
+├── logs/                 # Rotating log files (app.log)
+├── tests/
 │
 ├── config.py
 ├── main.py
+├── Dockerfile
+├── docker-compose.yml
+├── alembic.ini
 ├── requirements.txt
-├── .env
-└── README.md
+└── .env
 ```
 
 ---
 
-## Phase 1 Deliverables
+## Environment Variables
 
-1. **Telegram bot launches successfully** with long polling via `main.py`.
-2. **SQLite database file (`school_delivery.db`) is created automatically** on startup.
-3. **Users table exists** in the database with modern async SQLAlchemy ORM configurations.
-4. **`/start` command responds correctly** with the welcome message:
-   ```text
-   Welcome to SchoolRelay 🚚
+Create a `.env` file in the project root with the following variables:
 
-   Connecting students and trusted travelers safely.
-   ```
-5. **Environment variables are loaded successfully** via python-dotenv.
+| Variable       | Required | Description                                      | Example                                                      |
+|----------------|----------|--------------------------------------------------|--------------------------------------------------------------|
+| `BOT_TOKEN`    | ✅ Yes   | Telegram Bot API token from @BotFather           | `8805436167:AAFDbjz...`                                      |
+| `DATABASE_URL` | ✅ Yes   | PostgreSQL async connection string               | `postgresql+asyncpg://postgres:password@localhost:5432/schoolbridge` |
+| `ADMIN_IDS`    | ✅ Yes   | Comma-separated Telegram IDs of admins           | `123456789,987654321`                                        |
+| `ENVIRONMENT`  | No       | `development` or `production` (default: `development`) | `production`                                          |
+| `LOG_LEVEL`    | No       | Logging verbosity (default: `INFO`)              | `INFO`, `WARNING`, `ERROR`                                   |
 
 ---
 
-## Getting Started
+## Local Development Setup
 
 ### Prerequisites
 
-* Python 3.10+
-* Virtual environment tool (`venv`)
+- Python 3.11+
+- PostgreSQL 15+ running locally
+- Virtual environment tool (`venv`)
 
-### Installation
+### 1. Clone and Set Up Environment
 
-1. Clone or download the repository into your local directory.
-2. Initialize and activate the virtual environment:
-   ```bash
-   python -m venv venv
-   # On Windows:
-   venv\Scripts\activate
-   # On Linux/macOS:
-   source venv/bin/activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Create and configure your `.env` file in the project root:
-   ```env
-   BOT_TOKEN=8805436167:AAFDbjzuDeYq6SDidm5O-Co6lHj0Tfv_i58
-   ```
+```bash
+git clone <repo-url>
+cd school-delivery-bot
+python -m venv venv
 
-### Running the Bot
+# Windows
+venv\Scripts\activate
+# Linux/macOS
+source venv/bin/activate
+```
 
-To start the bot, run the following command in the project root:
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your values
+```
+
+### 4. Create PostgreSQL Database
+
+```bash
+psql -U postgres -c "CREATE DATABASE schoolbridge;"
+```
+
+### 5. Run Migrations
+
+```bash
+alembic upgrade head
+```
+
+### 6. Start the Bot
 
 ```bash
 python main.py
 ```
 
-Upon successful startup, the console will output `Bot is running...` and the database `school_delivery.db` will be automatically generated with the required `users` table.
+Logs are written to `logs/app.log` and to the console simultaneously.
 
 ---
 
-## Database Architecture
+## Docker Deployment
 
-### Users Table (`users`)
+### Single-Command Startup
 
-| Field | Type | Attributes | Description |
-|---|---|---|---|
-| `id` | INTEGER | Primary Key, Auto-increment | Unique internal database ID |
-| `telegram_id` | BIGINT | Unique, Indexed, Not Null | Telegram User ID |
-| `username` | VARCHAR | Nullable | Telegram Username |
-| `full_name` | VARCHAR | Nullable | User's full name |
-| `role` | VARCHAR | Default: `"Student"`, Not Null | User role: `Student`, `Parent`, or `Admin` |
+```bash
+docker compose up -d
+```
+
+This starts:
+- `postgres` — PostgreSQL 16 with a named volume (`pgdata`) for data persistence
+- `schoolbridge-bot` — the bot container; automatically runs `alembic upgrade head` before starting
+
+### Stopping
+
+```bash
+docker compose down
+```
+
+Data in the `pgdata` volume persists across container restarts.
+
+### Viewing Logs
+
+```bash
+# Bot logs (live)
+docker compose logs -f schoolbridge-bot
+
+# Or read the mounted log file
+cat logs/app.log
+```
+
+### Rebuilding After Code Changes
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## Database Migration Commands
+
+| Command                           | Description                                  |
+|-----------------------------------|----------------------------------------------|
+| `alembic upgrade head`            | Apply all pending migrations                 |
+| `alembic downgrade -1`            | Roll back one migration                      |
+| `alembic downgrade base`          | Roll back all migrations                     |
+| `alembic revision --autogenerate -m "description"` | Generate a new migration from model changes |
+| `alembic history`                 | Show migration history                       |
+| `alembic current`                 | Show current applied revision                |
+
+> [!IMPORTANT]
+> **Never** use `Base.metadata.create_all()` in production. Always use Alembic migrations.
+
+---
+
+## Backup Strategy
+
+### Daily Backup (PostgreSQL)
+
+```bash
+# Dump the database to a timestamped file
+pg_dump -U postgres -d schoolbridge -F c -f backup_$(date +%Y%m%d).dump
+```
+
+For Docker:
+
+```bash
+docker exec schoolbridge-postgres pg_dump -U postgres -d schoolbridge -F c \
+  > backup_$(date +%Y%m%d_%H%M%S).dump
+```
+
+### Restore from Backup
+
+```bash
+# Local restore
+pg_restore -U postgres -d schoolbridge -c backup_20260601.dump
+
+# Docker restore
+cat backup_20260601.dump | docker exec -i schoolbridge-postgres \
+  pg_restore -U postgres -d schoolbridge -c
+```
+
+### Recommended Schedule
+
+| Frequency | Method           |
+|-----------|------------------|
+| Daily     | Automated cron `pg_dump` to external storage or S3 |
+| Weekly    | Retain last 7 daily dumps |
+| Monthly   | Archive monthly snapshot off-site |
+
+---
+
+## Health Monitoring
+
+Send `/health` as an admin to check system status:
+
+```
+🩺 System Health
+
+Database:     ✅ OK
+Telegram API: ✅ OK
+Application:  ✅ Running
+```
+
+---
+
+## Admin Commands
+
+| Command           | Description                              |
+|-------------------|------------------------------------------|
+| `/health`         | Check DB and Telegram API connectivity   |
+| `/admin_matches`  | List all pending matches for review      |
+
+---
+
+## Troubleshooting
+
+### Bot won't start: `DATABASE_URL is not set`
+Ensure `.env` contains a valid `DATABASE_URL` and that `python-dotenv` is installed.
+
+### `asyncpg.InvalidCatalogNameError: database "schoolbridge" does not exist`
+Create the database first:
+```bash
+psql -U postgres -c "CREATE DATABASE schoolbridge;"
+```
+
+### Migrations fail with connection error
+Verify PostgreSQL is running and the credentials in `DATABASE_URL` are correct.
+
+### `alembic upgrade head` produces no changes
+Your models are already in sync with the current schema. No action needed.
+
+### Docker: bot container exits immediately
+Check logs: `docker compose logs schoolbridge-bot`. Usually a missing `.env` variable or unreachable Postgres.
+
+### Rate limit false positives
+The rate limiter is in-memory and resets on restart. Limit is 5 messages per 60 seconds per user. Adjust `_MAX_REQUESTS` and `_WINDOW_SECONDS` in `bot/middlewares/rate_limit_middleware.py` if needed.

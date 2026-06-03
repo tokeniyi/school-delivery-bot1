@@ -1,63 +1,92 @@
 import logging
+from sqlalchemy import select, func
+from sqlalchemy.orm import aliased
+
 from database.db import async_session
-from database.crud import match_exists, create_match, get_pending_matches
-from database.models import StudentRequest, ParentTravel
-from sqlalchemy import select
+from database.models import StudentRequest, ParentTravel, Match
+from database.enums import RequestStatus, TravelStatus, MatchStatus
 
 logger = logging.getLogger(__name__)
 
 
-async def find_matches() -> list:
+async def find_matches() -> list[tuple[int, int]]:
     """
-    Find potential matches between pending student requests and available parent travels.
+    Optimized matcher using a single SQL JOIN query.
 
-    Matching criteria:
-    - pickup_location == origin_location (case-insensitive)
-    - destination_school == destination_school (case-insensitive)
-    - delivery_date == travel_date
-    - parent.can_carry_packages == True
+    Finds all (student_request_id, parent_travel_id) pairs that satisfy
+    ALL matching conditions at the database level, with no Python-side loops
+    over all records. Scales to 1000+ requests and travels efficiently.
 
-    Returns a list of newly created Match objects.
+    Conditions (enforced in SQL):
+    - StudentRequest.status == PENDING
+    - ParentTravel.status == AVAILABLE
+    - ParentTravel.can_carry_packages == True
+    - LOWER(TRIM(pickup_location)) == LOWER(TRIM(origin_location))
+    - LOWER(TRIM(destination_school)) == LOWER(TRIM(destination_school))
+    - TRIM(delivery_date) == TRIM(travel_date)
+    - No existing Match with status IN (pending_review, approved) for this pair
+
+    Returns:
+        List of (student_request_id, parent_travel_id) tuples ready to be persisted.
     """
-    new_matches = []
-
     async with async_session() as session:
-        # Fetch all pending student requests
-        stmt_requests = select(StudentRequest).where(StudentRequest.status == "pending")
-        result_requests = await session.execute(stmt_requests)
-        pending_requests = list(result_requests.scalars().all())
 
-        # Fetch all available parent travels that can carry packages
-        stmt_travels = select(ParentTravel).where(
-            ParentTravel.status == "available",
-            ParentTravel.can_carry_packages == True
-        )
-        result_travels = await session.execute(stmt_travels)
-        available_travels = list(result_travels.scalars().all())
-
-        logger.info(
-            f"Matching: {len(pending_requests)} pending requests, "
-            f"{len(available_travels)} available travels"
+        # Subquery: existing non-rejected match pairs to exclude
+        existing_matches_subq = (
+            select(Match.student_request_id, Match.parent_travel_id)
+            .where(
+                Match.status.in_([
+                    MatchStatus.PENDING_REVIEW.value,
+                    MatchStatus.APPROVED.value,
+                ])
+            )
+            .subquery()
         )
 
-        # Compare each request against each travel
-        for request in pending_requests:
-            for travel in available_travels:
-                # Case-insensitive comparison with stripped whitespace
-                pickup_match = request.pickup_location.strip().lower() == travel.origin_location.strip().lower()
-                school_match = request.destination_school.strip().lower() == travel.destination_school.strip().lower()
-                date_match = request.delivery_date.strip() == travel.travel_date.strip()
+        ExistingMatch = aliased(Match, existing_matches_subq)
 
-                if pickup_match and school_match and date_match:
-                    # Check if this match already exists
-                    already_exists = await match_exists(session, request.id, travel.id)
-                    if not already_exists:
-                        new_match = await create_match(session, request.id, travel.id)
-                        new_matches.append(new_match)
-                        logger.info(
-                            f"New match created: Match#{new_match.id} "
-                            f"(Request#{request.id} <-> Travel#{travel.id})"
-                        )
+        # Main JOIN query: students ✕ parents with all conditions applied in SQL
+        stmt = (
+            select(StudentRequest.id, ParentTravel.id)
+            .join(
+                ParentTravel,
+                # Location match (case-insensitive, trimmed)
+                (func.lower(func.trim(StudentRequest.pickup_location)) ==
+                 func.lower(func.trim(ParentTravel.origin_location))) &
+                # School match (case-insensitive, trimmed)
+                (func.lower(func.trim(StudentRequest.destination_school)) ==
+                 func.lower(func.trim(ParentTravel.destination_school))) &
+                # Date match (exact after trim)
+                (func.trim(StudentRequest.delivery_date) ==
+                 func.trim(ParentTravel.travel_date))
+            )
+            .where(
+                StudentRequest.status == RequestStatus.PENDING.value,
+                ParentTravel.status == TravelStatus.AVAILABLE.value,
+                ParentTravel.can_carry_packages.is_(True),
+                # Exclude pairs that already have an active/pending match
+                ~select(func.count())
+                .where(
+                    Match.student_request_id == StudentRequest.id,
+                    Match.parent_travel_id == ParentTravel.id,
+                    Match.status.in_([
+                        MatchStatus.PENDING_REVIEW.value,
+                        MatchStatus.APPROVED.value,
+                    ])
+                )
+                .correlate(StudentRequest, ParentTravel)
+                .scalar_subquery()
+                .cast(bool)
+            )
+        )
 
-    logger.info(f"Matching complete. {len(new_matches)} new match(es) found.")
-    return new_matches
+        result = await session.execute(stmt)
+        candidates = [(row[0], row[1]) for row in result.all()]
+
+    count = len(candidates)
+    if count:
+        logger.info(f"Matching complete: {count} new candidate pair(s) found.")
+    else:
+        logger.info("Matching complete: no new candidates found.")
+
+    return candidates

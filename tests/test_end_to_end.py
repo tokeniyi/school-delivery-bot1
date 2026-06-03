@@ -5,11 +5,13 @@ from database.db import async_session
 from database.crud import (
     create_tables, create_user, update_user_role,
     create_student_request, create_parent_travel,
-    get_match_by_id, approve_match
+    get_match_by_id, approve_match, create_match
 )
 from services.matching import find_matches
 import services.notifications as notifications
 from config import ADMIN_IDS
+from sqlalchemy import delete
+from database.models import User, StudentRequest, ParentTravel, Match
 
 
 class FakeBot:
@@ -44,6 +46,14 @@ def test_full_flow():
         # Ensure tables exist
         await create_tables()
 
+        # Clean existing data to ensure test isolation
+        async with async_session() as session:
+            await session.execute(delete(Match))
+            await session.execute(delete(StudentRequest))
+            await session.execute(delete(ParentTravel))
+            await session.execute(delete(User))
+            await session.commit()
+
         # Create users and set roles
         async with async_session() as session:
             student = await create_user(session=session, telegram_id=9991001, username="student_test", full_name="Student Test")
@@ -74,12 +84,23 @@ def test_full_flow():
                 can_carry_packages=True,
             )
 
-        # Run matching service
-        new_matches = await find_matches()
-        assert len(new_matches) == 1, f"Expected 1 new match, got {len(new_matches)}"
-        match = new_matches[0]
+        # Run matching service (check-only)
+        candidates = await find_matches()
+        assert len(candidates) == 1, f"Expected 1 candidate, got {len(candidates)}"
+        req_id, trv_id = candidates[0]
+
+        # Persist the candidate
+        async with async_session() as session:
+            new_match = await create_match(session, req_id, trv_id)
+
+        # Load match with eager relationships to avoid detached instance errors
+        async with async_session() as session:
+            loaded_match = await get_match_by_id(session, new_match.id)
+            match = loaded_match
 
         # Notify admins about the match (mirrors handler behavior)
+        if match is None:
+            raise AssertionError("Failed to load match with relationships")
         await notifications.notify_admin_match(match)
 
         # Check admin notifications were sent

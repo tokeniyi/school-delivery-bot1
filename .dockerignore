@@ -1,92 +1,93 @@
+# flyctl launch added from .gitignore
 # Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[codz]
-*$py.class
+**/__pycache__
+**/*.py[codz]
+**/*$py.class
 
 # C extensions
-*.so
+**/*.so
 
 # Environment variables
-.env
+**/.env
 
 # Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+**/.Python
+**/build
+**/develop-eggs
+**/dist
+**/downloads
+**/eggs
+**/.eggs
+**/lib
+**/lib64
+**/parts
+**/sdist
+**/var
+**/wheels
+**/share/python-wheels
+**/*.egg-info
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
 
 # PyInstaller
 #   Usually these files are written by a python script from a template
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+**/*.manifest
+**/*.spec
 
 # Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+**/pip-log.txt
+**/pip-delete-this-directory.txt
 
 # Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
+**/htmlcov
+**/.tox
+**/.nox
+**/.coverage
+**/.coverage.*
+**/.cache
+**/nosetests.xml
+**/coverage.xml
+**/*.cover
+**/*.py.cover
+**/.hypothesis
+**/.pytest_cache
+**/cover
 
 # Translations
-*.mo
-*.pot
+**/*.mo
+**/*.pot
 
 # Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+**/*.log
+**/local_settings.py
+**/db.sqlite3
+**/db.sqlite3-journal
 
 # Flask stuff:
-instance/
-.webassets-cache
+**/instance
+**/.webassets-cache
 
 # Scrapy stuff:
-.scrapy
+**/.scrapy
 
 # Sphinx documentation
-docs/_build/
+**/docs/_build
 
 # PyBuilder
-.pybuilder/
-target/
+**/.pybuilder
+**/target
 
 # Jupyter Notebook
-.ipynb_checkpoints
+**/.ipynb_checkpoints
 
 # IPython
-profile_default/
-ipython_config.py
+**/profile_default
+**/ipython_config.py
 
 # Ignore SQLite database files
-*.db
+**/*.db
 
 
 # pyenv
@@ -121,72 +122,72 @@ ipython_config.py
 #   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
 # pdm.lock
 # pdm.toml
-.pdm-python
-.pdm-build/
+**/.pdm-python
+**/.pdm-build
 
 # pixi
 #   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
 # pixi.lock
 #   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
 #   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
+**/.pixi
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+**/__pypackages__
 
 # Celery stuff
-celerybeat-schedule
-celerybeat.pid
+**/celerybeat-schedule
+**/celerybeat.pid
 
 # Redis
-*.rdb
-*.aof
-*.pid
+**/*.rdb
+**/*.aof
+**/*.pid
 
 # RabbitMQ
-mnesia/
-rabbitmq/
-rabbitmq-data/
+**/mnesia
+**/rabbitmq
+**/rabbitmq-data
 
 # ActiveMQ
-activemq-data/
+**/activemq-data
 
 # SageMath parsed files
-*.sage.py
+**/*.sage.py
 
 # Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+**/.env
+**/.envrc
+**/.venv
+**/env
+**/venv
+**/ENV
+**/env.bak
+**/venv.bak
 
 # Spyder project settings
-.spyderproject
-.spyproject
+**/.spyderproject
+**/.spyproject
 
 # Rope project settings
-.ropeproject
+**/.ropeproject
 
 # mkdocs documentation
-/site
+site
 
 # mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+**/.mypy_cache
+**/.dmypy.json
+**/dmypy.json
 
 # Pyre type checker
-.pyre/
+**/.pyre
 
 # pytype static type analyzer
-.pytype/
+**/.pytype
 
 # Cython debug symbols
-cython_debug/
+**/cython_debug
 
 # PyCharm
 #   JetBrains specific template is maintained in a separate JetBrains.gitignore that can
@@ -199,7 +200,7 @@ cython_debug/
 #   Abstra is an AI-powered process automation framework.
 #   Ignore directories containing user credentials, local state, and settings.
 #   Learn more at https://abstra.io/docs
-.abstra/
+**/.abstra
 
 # Visual Studio Code
 #   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
@@ -208,25 +209,30 @@ cython_debug/
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 # Temporary file for partial code execution
-tempCodeRunnerFile.py
+**/tempCodeRunnerFile.py
 
 # Ruff stuff:
-.ruff_cache/
+**/.ruff_cache
 
 # PyPI configuration file
-.pypirc
+**/.pypirc
 
 # Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
+**/marimo/_static
+**/marimo/_lsp
+**/__marimo__
 
 # Streamlit
-.streamlit/secrets.toml
+**/.streamlit/secrets.toml
 
 # Application logs (keep directory tracked via .gitkeep)
-logs/*.log
-logs/*.log.*
+**/logs/*.log
+**/logs/*.log.*
 
 # SQLite legacy database
-*.db
+**/*.db
+
+# flyctl launch added from .pytest_cache/.gitignore
+# Created by pytest automatically.
+.pytest_cache/**/*
+fly.toml

@@ -24,7 +24,7 @@ async def command_start_handler(message: Message) -> None:
         )
 
     welcome_text = (
-        "Welcome to SchoolBridge 🚚\n\n"
+        "Welcome to SchoolRelay 🚚\n\n"
         "Please select your role:"
     )
     await message.answer(

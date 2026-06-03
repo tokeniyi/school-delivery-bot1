@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database.db import async_session
-from database.crud import update_user_role, create_parent_travel, get_match_by_id
+from database.crud import update_user_role, create_parent_travel, get_match_by_id, create_match
 from bot.states.parent_states import ParentTravelStates
 from bot.keyboards.yes_no_keyboard import get_yes_no_keyboard
 from services.matching import find_matches
@@ -39,6 +39,12 @@ async def process_origin_location(message: Message, state: FSMContext) -> None:
             "Where are you traveling from?"
         )
         return
+    if len(text) > 100:
+        await message.answer(
+            "Origin location cannot exceed 100 characters.\n"
+            "Where are you traveling from?"
+        )
+        return
 
     await state.update_data(origin_location=text)
     await state.set_state(ParentTravelStates.destination_school)
@@ -54,6 +60,12 @@ async def process_destination_school(message: Message, state: FSMContext) -> Non
             "Which school are you traveling to?"
         )
         return
+    if len(text) > 100:
+        await message.answer(
+            "Destination school cannot exceed 100 characters.\n"
+            "Which school are you traveling to?"
+        )
+        return
 
     await state.update_data(destination_school=text)
     await state.set_state(ParentTravelStates.travel_date)
@@ -62,6 +74,7 @@ async def process_destination_school(message: Message, state: FSMContext) -> Non
         "Example:\n"
         "2026-06-20"
     )
+
 
 @router.message(ParentTravelStates.travel_date)
 async def process_travel_date(message: Message, state: FSMContext) -> None:
@@ -140,11 +153,13 @@ async def process_can_carry_packages(message: Message, state: FSMContext) -> Non
 
     # Trigger automatic matching
     try:
-        new_matches = await find_matches()
-        for match in new_matches:
+        candidates = await find_matches()
+        for req_id, trv_id in candidates:
             async with async_session() as session:
-                loaded_match = await get_match_by_id(session, match.id)
-                if loaded_match:
-                    await notify_admin_match(loaded_match)
+                new_match = await create_match(session, req_id, trv_id)
+                if new_match:
+                    loaded_match = await get_match_by_id(session, new_match.id)
+                    if loaded_match:
+                        await notify_admin_match(loaded_match)
     except Exception as e:
         logger.error(f"Error during automatic matching: {e}")

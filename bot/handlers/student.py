@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database.db import async_session
-from database.crud import update_user_role, create_student_request, get_match_by_id
+from database.crud import update_user_role, create_student_request, get_match_by_id, create_match
 from bot.states.student_states import StudentRequestStates
 from services.matching import find_matches
 from services.notifications import notify_admin_match
@@ -37,6 +37,12 @@ async def process_item_description(message: Message, state: FSMContext) -> None:
             "What item would you like delivered?"
         )
         return
+    if len(text) > 250:
+        await message.answer(
+            "Item description cannot exceed 250 characters.\n"
+            "What item would you like delivered?"
+        )
+        return
 
     await state.update_data(item_description=text)
     await state.set_state(StudentRequestStates.pickup_location)
@@ -49,6 +55,12 @@ async def process_pickup_location(message: Message, state: FSMContext) -> None:
     if not text or len(text) < 2:
         await message.answer(
             "Pickup location must be at least 2 characters long.\n"
+            "Where should the package be picked up?"
+        )
+        return
+    if len(text) > 100:
+        await message.answer(
+            "Pickup location cannot exceed 100 characters.\n"
             "Where should the package be picked up?"
         )
         return
@@ -67,6 +79,12 @@ async def process_destination_school(message: Message, state: FSMContext) -> Non
             "Which school should the item be delivered to?"
         )
         return
+    if len(text) > 100:
+        await message.answer(
+            "Destination school cannot exceed 100 characters.\n"
+            "Which school should the item be delivered to?"
+        )
+        return
 
     await state.update_data(destination_school=text)
     await state.set_state(StudentRequestStates.delivery_date)
@@ -75,6 +93,7 @@ async def process_destination_school(message: Message, state: FSMContext) -> Non
         "Example:\n"
         "2026-06-15"
     )
+
 
 @router.message(StudentRequestStates.delivery_date)
 async def process_delivery_date(message: Message, state: FSMContext) -> None:
@@ -133,11 +152,14 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
 
     # 7. Trigger automatic matching
     try:
-        new_matches = await find_matches()
-        for match in new_matches:
+        candidates = await find_matches()
+        for req_id, trv_id in candidates:
             async with async_session() as session:
-                loaded_match = await get_match_by_id(session, match.id)
-                if loaded_match:
-                    await notify_admin_match(loaded_match)
+                # Persist the match and notify admins
+                new_match = await create_match(session, req_id, trv_id)
+                if new_match:
+                    loaded_match = await get_match_by_id(session, new_match.id)
+                    if loaded_match:
+                        await notify_admin_match(loaded_match)
     except Exception as e:
         logger.error(f"Error during automatic matching: {e}")
