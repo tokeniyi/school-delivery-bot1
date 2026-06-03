@@ -1,6 +1,5 @@
 import logging
 from sqlalchemy import select, func
-from sqlalchemy.orm import aliased
 
 from database.db import async_session
 from database.models import StudentRequest, ParentTravel, Match
@@ -31,20 +30,6 @@ async def find_matches() -> list[tuple[int, int]]:
     """
     async with async_session() as session:
 
-        # Subquery: existing non-rejected match pairs to exclude
-        existing_matches_subq = (
-            select(Match.student_request_id, Match.parent_travel_id)
-            .where(
-                Match.status.in_([
-                    MatchStatus.PENDING_REVIEW.value,
-                    MatchStatus.APPROVED.value,
-                ])
-            )
-            .subquery()
-        )
-
-        ExistingMatch = aliased(Match, existing_matches_subq)
-
         # Main JOIN query: students ✕ parents with all conditions applied in SQL
         stmt = (
             select(StudentRequest.id, ParentTravel.id)
@@ -65,7 +50,8 @@ async def find_matches() -> list[tuple[int, int]]:
                 ParentTravel.status == TravelStatus.AVAILABLE.value,
                 ParentTravel.can_carry_packages.is_(True),
                 # Exclude pairs that already have an active/pending match
-                ~select(func.count())
+                ~select(1)
+                .select_from(Match)
                 .where(
                     Match.student_request_id == StudentRequest.id,
                     Match.parent_travel_id == ParentTravel.id,
@@ -75,8 +61,7 @@ async def find_matches() -> list[tuple[int, int]]:
                     ])
                 )
                 .correlate(StudentRequest, ParentTravel)
-                .scalar_subquery()
-                .cast(bool)
+                .exists()
             )
         )
 

@@ -1,13 +1,23 @@
 import logging
-from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import User, StudentRequest, ParentTravel, Match, AuditLog
 from database.enums import RequestStatus, TravelStatus, MatchStatus
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+
+# ===== Database Setup =====
+
+async def create_tables():
+    """Create all database tables from models."""
+    from database.db import engine
+    from database.models import Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 # ===== User CRUD =====
@@ -40,7 +50,6 @@ async def create_user(session: AsyncSession, telegram_id: int, username: str | N
     )
     session.add(new_user)
     await session.commit()
-    await session.refresh(new_user)
     logger.info(f"Created new user: telegram_id={telegram_id} full_name={full_name!r}")
     return new_user
 
@@ -51,7 +60,6 @@ async def update_user_role(session: AsyncSession, telegram_id: int, role: str) -
     if user:
         user.role = role
         await session.commit()
-        await session.refresh(user)
     return user
 
 
@@ -81,32 +89,34 @@ async def upsert_student_request(
     )
     student_request = existing.scalars().first()
 
-    if student_request:
-        student_request.item_description = item_description
-        student_request.pickup_location = pickup_location
-        student_request.destination_school = destination_school
-        student_request.delivery_date = delivery_date
-        await session.commit()
-        await session.refresh(student_request)
-        logger.info(f"Updated existing StudentRequest#{student_request.id} for telegram_id={telegram_id}")
-        return student_request
+    try:
+        if student_request:
+            student_request.item_description = item_description
+            student_request.pickup_location = pickup_location
+            student_request.destination_school = destination_school
+            student_request.delivery_date = delivery_date
+            await session.commit()
+            logger.info(f"Updated existing StudentRequest#{student_request.id} for telegram_id={telegram_id}")
+            return student_request
 
-    new_request = StudentRequest(
-        user_id=user.id,
-        item_description=item_description,
-        pickup_location=pickup_location,
-        destination_school=destination_school,
-        delivery_date=delivery_date,
-        status=RequestStatus.PENDING.value
-    )
-    session.add(new_request)
-    await session.commit()
-    await session.refresh(new_request)
-    logger.info(
-        f"Created new StudentRequest#{new_request.id} for telegram_id={telegram_id} "
-        f"item={item_description!r} date={delivery_date}"
-    )
-    return new_request
+        new_request = StudentRequest(
+            user_id=user.id,
+            item_description=item_description,
+            pickup_location=pickup_location,
+            destination_school=destination_school,
+            delivery_date=delivery_date,
+            status=RequestStatus.PENDING.value
+        )
+        session.add(new_request)
+        await session.commit()
+        logger.info(
+            f"Created new StudentRequest#{new_request.id} for telegram_id={telegram_id} "
+            f"item={item_description!r} date={delivery_date}"
+        )
+        return new_request
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def create_student_request(
@@ -155,33 +165,35 @@ async def upsert_parent_travel(
 
     new_status = TravelStatus.AVAILABLE.value if can_carry_packages else TravelStatus.UNAVAILABLE.value
 
-    if parent_travel:
-        parent_travel.origin_location = origin_location
-        parent_travel.destination_school = destination_school
-        parent_travel.travel_date = travel_date
-        parent_travel.can_carry_packages = can_carry_packages
-        parent_travel.status = new_status
-        await session.commit()
-        await session.refresh(parent_travel)
-        logger.info(f"Updated existing ParentTravel#{parent_travel.id} for telegram_id={telegram_id}")
-        return parent_travel
+    try:
+        if parent_travel:
+            parent_travel.origin_location = origin_location
+            parent_travel.destination_school = destination_school
+            parent_travel.travel_date = travel_date
+            parent_travel.can_carry_packages = can_carry_packages
+            parent_travel.status = new_status
+            await session.commit()
+            logger.info(f"Updated existing ParentTravel#{parent_travel.id} for telegram_id={telegram_id}")
+            return parent_travel
 
-    new_travel = ParentTravel(
-        user_id=user.id,
-        origin_location=origin_location,
-        destination_school=destination_school,
-        travel_date=travel_date,
-        can_carry_packages=can_carry_packages,
-        status=new_status
-    )
-    session.add(new_travel)
-    await session.commit()
-    await session.refresh(new_travel)
-    logger.info(
-        f"Created new ParentTravel#{new_travel.id} for telegram_id={telegram_id} "
-        f"date={travel_date} can_carry={can_carry_packages}"
-    )
-    return new_travel
+        new_travel = ParentTravel(
+            user_id=user.id,
+            origin_location=origin_location,
+            destination_school=destination_school,
+            travel_date=travel_date,
+            can_carry_packages=can_carry_packages,
+            status=new_status
+        )
+        session.add(new_travel)
+        await session.commit()
+        logger.info(
+            f"Created new ParentTravel#{new_travel.id} for telegram_id={telegram_id} "
+            f"date={travel_date} can_carry={can_carry_packages}"
+        )
+        return new_travel
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def create_parent_travel(
@@ -219,18 +231,29 @@ async def match_exists(session: AsyncSession, request_id: int, travel_id: int) -
     return result.scalar_one_or_none() is not None
 
 
-async def create_match(session: AsyncSession, request_id: int, travel_id: int) -> Match:
-    """Create a new potential match record with status 'pending_review'."""
-    new_match = Match(
-        student_request_id=request_id,
-        parent_travel_id=travel_id,
-        status=MatchStatus.PENDING_REVIEW.value
-    )
-    session.add(new_match)
-    await session.commit()
-    await session.refresh(new_match)
-    logger.info(f"Created Match#{new_match.id}: Request#{request_id} ↔ Travel#{travel_id}")
-    return new_match
+async def create_match(session: AsyncSession, request_id: int, travel_id: int) -> Match | None:
+    """
+    Create a new potential match record with status 'pending_review'.
+    Returns None if match already exists to prevent duplicates.
+    """
+    try:
+        # Double-check within transaction to prevent race conditions
+        if await match_exists(session, request_id, travel_id):
+            logger.warning(f"Match already exists: Request#{request_id} ↔ Travel#{travel_id}")
+            return None
+        
+        new_match = Match(
+            student_request_id=request_id,
+            parent_travel_id=travel_id,
+            status=MatchStatus.PENDING_REVIEW.value
+        )
+        session.add(new_match)
+        await session.commit()
+        logger.info(f"Created Match#{new_match.id}: Request#{request_id} ↔ Travel#{travel_id}")
+        return new_match
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def get_pending_matches(session: AsyncSession) -> list[Match]:
@@ -270,29 +293,32 @@ async def approve_match(session: AsyncSession, match_id: int, admin_id: int | No
     - Record timezone-aware reviewed_at timestamp
     - Create audit log entry
     """
-    match = await get_match_by_id(session, match_id)
-    if not match or match.status != MatchStatus.PENDING_REVIEW.value:
-        return None
+    try:
+        match = await get_match_by_id(session, match_id)
+        if not match or match.status != MatchStatus.PENDING_REVIEW.value:
+            return None
 
-    match.status = MatchStatus.APPROVED.value
-    match.reviewed_at = datetime.now(timezone.utc)
-    match.student_request.status = RequestStatus.MATCHED.value
-    match.parent_travel.status = TravelStatus.MATCHED.value
+        match.status = MatchStatus.APPROVED.value
+        match.reviewed_at = datetime.now(timezone.utc)
+        match.student_request.status = RequestStatus.MATCHED.value
+        match.parent_travel.status = TravelStatus.MATCHED.value
 
-    if admin_id:
-        audit = AuditLog(
-            admin_id=admin_id,
-            action="approve",
-            entity_type="match",
-            entity_id=match_id,
-            created_at=datetime.now(timezone.utc),
-        )
-        session.add(audit)
+        if admin_id:
+            audit = AuditLog(
+                admin_id=admin_id,
+                action="approve",
+                entity_type="match",
+                entity_id=match_id,
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(audit)
 
-    await session.commit()
-    await session.refresh(match)
-    logger.info(f"Match#{match_id} approved by admin_id={admin_id}")
-    return match
+        await session.commit()
+        logger.info(f"Match#{match_id} approved by admin_id={admin_id}")
+        return match
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def reject_match(session: AsyncSession, match_id: int, admin_id: int | None = None) -> Match | None:
@@ -304,29 +330,32 @@ async def reject_match(session: AsyncSession, match_id: int, admin_id: int | Non
     - Record timezone-aware reviewed_at timestamp
     - Create audit log entry
     """
-    match = await get_match_by_id(session, match_id)
-    if not match or match.status != MatchStatus.PENDING_REVIEW.value:
-        return None
+    try:
+        match = await get_match_by_id(session, match_id)
+        if not match or match.status != MatchStatus.PENDING_REVIEW.value:
+            return None
 
-    match.status = MatchStatus.REJECTED.value
-    match.reviewed_at = datetime.now(timezone.utc)
-    match.student_request.status = RequestStatus.PENDING.value
-    match.parent_travel.status = TravelStatus.AVAILABLE.value
+        match.status = MatchStatus.REJECTED.value
+        match.reviewed_at = datetime.now(timezone.utc)
+        match.student_request.status = RequestStatus.PENDING.value
+        match.parent_travel.status = TravelStatus.AVAILABLE.value
 
-    if admin_id:
-        audit = AuditLog(
-            admin_id=admin_id,
-            action="reject",
-            entity_type="match",
-            entity_id=match_id,
-            created_at=datetime.now(timezone.utc),
-        )
-        session.add(audit)
+        if admin_id:
+            audit = AuditLog(
+                admin_id=admin_id,
+                action="reject",
+                entity_type="match",
+                entity_id=match_id,
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(audit)
 
-    await session.commit()
-    await session.refresh(match)
-    logger.info(f"Match#{match_id} rejected by admin_id={admin_id}")
-    return match
+        await session.commit()
+        logger.info(f"Match#{match_id} rejected by admin_id={admin_id}")
+        return match
+    except Exception:
+        await session.rollback()
+        raise
 
 
 # ===== Audit Log =====
@@ -339,15 +368,18 @@ async def create_audit_log(
     entity_id: int,
 ) -> AuditLog:
     """Create a standalone audit log entry for an admin action."""
-    entry = AuditLog(
-        admin_id=admin_id,
-        action=action,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        created_at=datetime.now(timezone.utc),
-    )
-    session.add(entry)
-    await session.commit()
-    await session.refresh(entry)
-    logger.info(f"AuditLog#{entry.id}: admin={admin_id} action={action} {entity_type}#{entity_id}")
-    return entry
+    try:
+        entry = AuditLog(
+            admin_id=admin_id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(entry)
+        await session.commit()
+        logger.info(f"AuditLog#{entry.id}: admin={admin_id} action={action} {entity_type}#{entity_id}")
+        return entry
+    except Exception:
+        await session.rollback()
+        raise
