@@ -1,6 +1,5 @@
 import logging
 from sqlalchemy import select, func
-from sqlalchemy.orm import aliased
 
 from database.db import async_session
 from database.models import StudentRequest, ParentTravel, Match

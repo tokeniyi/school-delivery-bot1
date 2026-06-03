@@ -27,6 +27,7 @@ async def student_role_selected(message: Message, state: FSMContext) -> None:
         "Let's create your delivery request.\n\n"
         "What item would you like delivered?"
     )
+
 @router.message(StudentRequestStates.item_description)
 async def process_item_description(message: Message, state: FSMContext) -> None:
     """Collects and validates the item description."""
@@ -153,13 +154,23 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
     # 7. Trigger automatic matching
     try:
         candidates = await find_matches()
+        if not candidates:
+            logger.info("No matching traveler found yet for this request")
+            return
+        
         for req_id, trv_id in candidates:
             async with async_session() as session:
-                # Persist the match and notify admins
+                # Create match with race condition prevention
                 new_match = await create_match(session, req_id, trv_id)
                 if new_match:
+                    # Load match with relationships for notification
                     loaded_match = await get_match_by_id(session, new_match.id)
                     if loaded_match:
                         await notify_admin_match(loaded_match)
+                else:
+                    logger.warning(f"Could not persist match (duplicate): Req#{req_id} ↔ Travel#{trv_id}")
     except Exception as e:
-        logger.error(f"Error during automatic matching: {e}")
+        logger.error(f"Error during automatic matching: {e}", exc_info=True)
+        await message.answer(
+            "⚠️ Your request has been saved. An admin will review it shortly."
+        )

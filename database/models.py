@@ -103,7 +103,7 @@ class Match(Base):
         String, default=MatchStatus.PENDING_REVIEW.value, nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
@@ -113,8 +113,8 @@ class Match(Base):
     )
 
     # Relationships
-    student_request: Mapped["StudentRequest"] = relationship()
-    parent_travel: Mapped["ParentTravel"] = relationship()
+    student_request: Mapped["StudentRequest"] = relationship(lazy="selectin")
+    parent_travel: Mapped["ParentTravel"] = relationship(lazy="selectin")
 
     def __repr__(self) -> str:
         return f"<Match id={self.id} request={self.student_request_id} travel={self.parent_travel_id} status={self.status}>"
