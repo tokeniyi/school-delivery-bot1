@@ -3,4 +3,7 @@ sqlalchemy==2.0.41
 asyncpg==0.29.0
 alembic==1.16.1
 python-dotenv==1.0.1
-tenacity==8.5.0
+tenacity==8.5.0fly deplot
+aiogram==3.20.0
+redis==6.2.0
+upstash-redis==1.4.0

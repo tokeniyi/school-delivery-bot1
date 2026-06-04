@@ -1,8 +1,16 @@
 import os
 from dotenv import load_dotenv
 
+
 # Load environment variables from .env file
 load_dotenv()
+
+
+
+# ===== Redis =====
+REDIS_URL = os.getenv("REDIS_URL")
+if not REDIS_URL:
+    raise ValueError("REDIS_URL is not set in the environment variables or .env file.")
 
 # ===== Bot =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -24,7 +32,7 @@ if not ADMIN_IDS:
     if ENVIRONMENT == "production":
         raise ValueError("ADMIN_IDS must be set in environment variables for production deployment")
     # Allow fallback only in development
-    ADMIN_IDS = [7922991513, 5670012095]
+    ADMIN_IDS = os.getenv("ADMIN_IDS")
 
 # ===== Logging =====
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

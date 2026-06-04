@@ -5,7 +5,8 @@ import os
 import sys
 
 from aiogram import Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
+from redis.asyncio import Redis
 
 from bot.client import bot
 from bot.handlers.start import router as start_router
@@ -14,9 +15,9 @@ from bot.handlers.parent import router as parent_router
 from bot.handlers.admin import router as admin_router
 from bot.middlewares.error_middleware import ErrorMiddleware
 from bot.middlewares.rate_limit_middleware import RateLimitMiddleware
-from config import LOG_LEVEL, ENVIRONMENT
+from config import LOG_LEVEL, ENVIRONMENT, REDIS_URL
 
-
+# 
 # ===== Logging Setup =====
 
 def setup_logging() -> None:
@@ -65,10 +66,23 @@ logger = logging.getLogger(__name__)
 # ===== Application Entry Point =====
 
 async def main() -> None:
-    logger.info(f"SchoolBridge starting | environment={ENVIRONMENT} | log_level={LOG_LEVEL}")
+    logger.info(
+        f"SchoolBridge starting | environment={ENVIRONMENT} | log_level={LOG_LEVEL}"
+    )
 
-    # Create dispatcher with FSM Memory Storage
-    dp = Dispatcher(storage=MemoryStorage())
+    # Redis FSM Storage
+    if REDIS_URL is None:
+        raise RuntimeError("REDIS_URL environment variable is not set")
+
+    redis_client = Redis.from_url(
+        REDIS_URL,
+        decode_responses=True,
+    )
+
+    storage = RedisStorage(redis=redis_client)
+
+    # Create dispatcher
+    dp = Dispatcher(storage=storage)
 
     # Register global middlewares
     dp.update.middleware(ErrorMiddleware())
@@ -88,10 +102,11 @@ async def main() -> None:
 
     try:
         await dp.start_polling(bot)
+
     finally:
         await bot.session.close()
+        await redis_client.close()
         logger.info("Application stopped.")
-
 
 if __name__ == "__main__":
     try:
