@@ -27,31 +27,27 @@ BOT_TOKEN = get_env(
     "BOT_TOKEN",
     required=(ENVIRONMENT == "production")
 )
-
 # ===== Database =====
 DATABASE_URL = get_env(
     "DATABASE_URL",
     required=(ENVIRONMENT == "production")
 )
 
-# Railway usually provides:
-# postgresql://user:password@host:port/dbname
-#
-# Async SQLAlchemy requires:
-# postgresql+asyncpg://user:password@host:port/dbname
-
 if DATABASE_URL:
-    if DATABASE_URL.startswith("postgresql://"):
-        DATABASE_URL = DATABASE_URL.replace(
-            "postgresql://",
-            "postgresql+asyncpg://",
-            1
-        )
-    elif DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.strip()
+
+    if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace(
             "postgres://",
             "postgresql+asyncpg://",
-            1
+            1,
+        )
+
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgresql://",
+            "postgresql+asyncpg://",
+            1,
         )
 
 # ===== Admin IDs =====
