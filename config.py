@@ -1,38 +1,50 @@
 import os
 from dotenv import load_dotenv
 
-
-# Load environment variables from .env file
 load_dotenv()
 
 
+def get_env(name: str, default=None, required: bool = False):
+    value = os.getenv(name, default)
 
-# ===== Redis =====
-REDIS_URL = os.getenv("REDIS_URL")
-if not REDIS_URL:
-    raise ValueError("REDIS_URL is not set in the environment variables or .env file.")
+    if required and (value is None or value == ""):
+        raise ValueError(f"{name} is not set")
 
-# ===== Bot =====
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN is not set in the environment variables or .env file.")
+    return value
 
-# ===== Database =====
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set in the environment variables or .env file.")
 
 # ===== Application =====
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = get_env("ENVIRONMENT", "development")
+
+# ===== Redis =====
+REDIS_URL = get_env(
+    "REDIS_URL",
+    required=(ENVIRONMENT == "production")
+)
+
+# ===== Bot =====
+BOT_TOKEN = get_env(
+    "BOT_TOKEN",
+    required=(ENVIRONMENT == "production")
+)
+
+# ===== Database =====
+DATABASE_URL = get_env(
+    "DATABASE_URL",
+    required=(ENVIRONMENT == "production")
+)
 
 # ===== Admin IDs =====
-admin_env = os.getenv("ADMIN_IDS", "")
-ADMIN_IDS = [int(x.strip()) for x in admin_env.split(",") if x.strip().isdigit()]
-if not ADMIN_IDS:
-    if ENVIRONMENT == "production":
-        raise ValueError("ADMIN_IDS must be set in environment variables for production deployment")
-    # Allow fallback only in development
-    ADMIN_IDS = os.getenv("ADMIN_IDS")
+admin_env = get_env("ADMIN_IDS", "")
+
+ADMIN_IDS = [
+    int(x.strip())
+    for x in admin_env.split(",")
+    if x.strip().isdigit()
+]
+
+if ENVIRONMENT == "production" and not ADMIN_IDS:
+    raise ValueError("ADMIN_IDS must be configured in production")
 
 # ===== Logging =====
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
