@@ -1,14 +1,10 @@
-# fly.toml app configuration file generated for school-delivery-bot on 2026-06-03T03:15:43+01:00
+# fly.toml app configuration file generated for school-delivery-bot on 2026-06-05T10:00:09+01:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
 app = 'school-delivery-bot'
 primary_region = 'jnb'
-
-[build]
-
-
 
 [[vm]]
   memory = '1gb'
