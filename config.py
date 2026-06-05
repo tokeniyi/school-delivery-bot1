@@ -34,6 +34,26 @@ DATABASE_URL = get_env(
     required=(ENVIRONMENT == "production")
 )
 
+# Railway usually provides:
+# postgresql://user:password@host:port/dbname
+#
+# Async SQLAlchemy requires:
+# postgresql+asyncpg://user:password@host:port/dbname
+
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgresql://",
+            "postgresql+asyncpg://",
+            1
+        )
+    elif DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgres://",
+            "postgresql+asyncpg://",
+            1
+        )
+
 # ===== Admin IDs =====
 admin_env = get_env("ADMIN_IDS", "") or ""
 ADMIN_IDS = [int(x.strip()) for x in admin_env.split(",") if x.strip().isdigit()]
