@@ -35,16 +35,13 @@ DATABASE_URL = get_env(
 )
 
 # ===== Admin IDs =====
-admin_env = get_env("ADMIN_IDS", "")
-
-ADMIN_IDS = [
-    int(x.strip())
-    for x in admin_env.split(",")
-    if x.strip().isdigit()
-]
-
-if ENVIRONMENT == "production" and not ADMIN_IDS:
-    raise ValueError("ADMIN_IDS must be configured in production")
+admin_env = get_env("ADMIN_IDS", "") or ""
+ADMIN_IDS = [int(x.strip()) for x in admin_env.split(",") if x.strip().isdigit()]
+if not ADMIN_IDS:
+    if ENVIRONMENT == "production":
+        raise ValueError("ADMIN_IDS must be set in environment variables for production deployment")
+    # Allow fallback only in development
+    ADMIN_IDS = os.getenv("ADMIN_IDS")
 
 # ===== Logging =====
 LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
