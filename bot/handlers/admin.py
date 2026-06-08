@@ -2,19 +2,11 @@ import logging
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
-from sqlalchemy import text
 
 from config import ADMIN_IDS
-from database.db import async_session
-from database.crud import get_pending_matches, get_match_by_id, approve_match, reject_match
 from bot.keyboards.admin_keyboard import get_admin_keyboard
-from bot.client import bot as _bot
-from services.notifications import (
-    notify_student_approved,
-    notify_parent_approved,
-    notify_student_rejected,
-    notify_parent_rejected,
-)
+from services.matching_service import MatchingService
+from services.health_service import HealthCheckService
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -28,8 +20,7 @@ async def cmd_admin_matches(message: Message) -> None:
         await message.answer("⛔ Access denied.")
         return
 
-    async with async_session() as session:
-        pending = await get_pending_matches(session)
+    pending = await MatchingService.get_pending_matches()
 
     if not pending:
         await message.answer("📭 No pending matches to review.")
@@ -67,32 +58,20 @@ async def cmd_health(message: Message) -> None:
         await message.answer("⛔ Access denied.")
         return
 
-    db_status = "❌ FAIL"
-    telegram_status = "❌ FAIL"
-
-    # Database connectivity check
-    try:
-        async with async_session() as session:
-            await session.execute(text("SELECT 1"))
-        db_status = "✅ OK"
-    except Exception as e:
-        logger.error(f"Health check DB failure: {e}")
-
-    # Telegram API connectivity check
-    try:
-        await _bot.get_me()
-        telegram_status = "✅ OK"
-    except Exception as e:
-        logger.error(f"Health check Telegram API failure: {e}")
+    db_status = await HealthCheckService.check_database()
+    telegram_status = await HealthCheckService.check_telegram()
 
     health_text = (
         "🩺 <b>System Health</b>\n\n"
-        f"Database:     {db_status}\n"
-        f"Telegram API: {telegram_status}\n"
+        f"Database:     {db_status.display}\n"
+        f"Telegram API: {telegram_status.display}\n"
         f"Application:  ✅ Running"
     )
     await message.answer(health_text, parse_mode="HTML")
-    logger.info(f"Health check performed by admin_id={message.from_user.id}: DB={db_status} TG={telegram_status}")
+    logger.info(
+        f"Health check performed by admin_id={message.from_user.id}: "
+        f"DB={db_status.display} TG={telegram_status.display}"
+    )
 
 
 @router.callback_query(F.data.startswith("approve_match_"))
@@ -106,8 +85,7 @@ async def callback_approve_match(callback: CallbackQuery) -> None:
     match_id = int(callback.data.replace("approve_match_", ""))
     admin_id = callback.from_user.id
 
-    async with async_session() as session:
-        match = await approve_match(session, match_id, admin_id=admin_id)
+    match = await MatchingService.approve_match(match_id, admin_id=admin_id)
 
     if not match:
         await callback.answer("⚠️ This match has already been processed or does not exist.", show_alert=True)
@@ -118,12 +96,6 @@ async def callback_approve_match(callback: CallbackQuery) -> None:
         parse_mode="HTML"
     )
     await callback.answer("Match approved!")
-
-    student_telegram_id = match.student_request.user.telegram_id
-    parent_telegram_id = match.parent_travel.user.telegram_id
-
-    await notify_student_approved(student_telegram_id)
-    await notify_parent_approved(parent_telegram_id)
 
     logger.info(f"Match#{match_id} approved by admin {admin_id}")
 
@@ -139,8 +111,7 @@ async def callback_reject_match(callback: CallbackQuery) -> None:
     match_id = int(callback.data.replace("reject_match_", ""))
     admin_id = callback.from_user.id
 
-    async with async_session() as session:
-        match = await reject_match(session, match_id, admin_id=admin_id)
+    match = await MatchingService.reject_match(match_id, admin_id=admin_id)
 
     if not match:
         await callback.answer("⚠️ This match has already been processed or does not exist.", show_alert=True)
@@ -151,11 +122,5 @@ async def callback_reject_match(callback: CallbackQuery) -> None:
         parse_mode="HTML"
     )
     await callback.answer("Match rejected.")
-
-    student_telegram_id = match.student_request.user.telegram_id
-    parent_telegram_id = match.parent_travel.user.telegram_id
-
-    await notify_student_rejected(student_telegram_id)
-    await notify_parent_rejected(parent_telegram_id)
 
     logger.info(f"Match#{match_id} rejected by admin {admin_id}")

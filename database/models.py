@@ -43,7 +43,7 @@ class StudentRequest(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id",ondelete="CASCADE"), nullable=False)
     item_description: Mapped[str] = mapped_column(String, nullable=False)
     pickup_location: Mapped[str] = mapped_column(String, nullable=False)
     destination_school: Mapped[str] = mapped_column(String, nullable=False)
@@ -70,7 +70,8 @@ class ParentTravel(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"
+                                                    ), nullable=False)
     origin_location: Mapped[str] = mapped_column(String, nullable=False)
     destination_school: Mapped[str] = mapped_column(String, nullable=False)
     travel_date: Mapped[str] = mapped_column(String, nullable=False)
