@@ -23,3 +23,10 @@ class MatchStatus(str, enum.Enum):
     PENDING_REVIEW = "pending_review"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class Role(str, enum.Enum):
+    """Canonical role values stored for users."""
+    STUDENT = "student"
+    PARENT = "parent"
+    ADMIN = "admin"

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import User, StudentRequest, ParentTravel, Match, AuditLog
-from database.enums import RequestStatus, TravelStatus, MatchStatus
+from database.enums import RequestStatus, TravelStatus, MatchStatus, Role
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ async def create_user(session: AsyncSession, telegram_id: int, username: str | N
         telegram_id=telegram_id,
         username=username,
         full_name=full_name,
-        role="Student"
+        role=Role.STUDENT.value
     )
     session.add(new_user)
     await session.commit()

@@ -1,3 +1,4 @@
+import os
 import pytest
 import asyncio
 from sqlalchemy import delete
@@ -5,6 +6,12 @@ from database.db import async_session
 from database.crud import create_tables
 from database.models import User, StudentRequest, ParentTravel, Match
 import services.notifications as notifications
+
+os.environ.setdefault("ENVIRONMENT", "development")
+os.environ.setdefault("BOT_TOKEN", "123456:TESTTOKEN")
+os.environ.setdefault("ADMIN_IDS", "123456789")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost:5432/schoolbridge")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 
 class FakeBot:

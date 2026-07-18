@@ -1,15 +1,15 @@
-# SchoolBridge Telegram Bot (SchoolRelay)
+# SchoolBridge Telegram Bot
 
 SchoolBridge is a Telegram bot that safely connects students who need items delivered with trusted parent travelers heading to the same school.
 
-The Telegram bot is named **SchoolRelay** (`@SchoolRelay_Bot`).
+The Telegram bot is named **SchoolBridge**.
 
 ---
 
 ## Project Structure
 
 ```text
-school-delivery-bot/
+school-delivery-bot1/
 │
 ├── bot/
 │   ├── handlers/
@@ -54,14 +54,17 @@ school-delivery-bot/
 
 ## Environment Variables
 
-Create a `.env` file in the project root with the following variables:
+Copy [.env.example](.env.example) to `.env` and update values for your environment.
 
 | Variable       | Required | Description                                      | Example                                                      |
 |----------------|----------|--------------------------------------------------|--------------------------------------------------------------|
 | `BOT_TOKEN`    | ✅ Yes   | Telegram Bot API token from @BotFather           | `8805436167:AAFDbjz...`                                      |
 | `DATABASE_URL` | ✅ Yes   | PostgreSQL async connection string               | `postgresql+asyncpg://postgres:password@localhost:5432/schoolbridge` |
+| `REDIS_URL`    | ✅ Yes   | Redis URL used by aiogram FSM storage            | `redis://localhost:6379/0`                                   |
 | `ADMIN_IDS`    | ✅ Yes   | Comma-separated Telegram IDs of admins           | `123456789,987654321`                                        |
 | `ENVIRONMENT`  | No       | `development` or `production` (default: `development`) | `production`                                          |
+| `DB_POOL_SIZE` | No       | SQLAlchemy base connection pool size             | `20`                                                         |
+| `DB_MAX_OVERFLOW` | No    | SQLAlchemy extra overflow connections            | `10`                                                         |
 | `LOG_LEVEL`    | No       | Logging verbosity (default: `INFO`)              | `INFO`, `WARNING`, `ERROR`                                   |
 
 ---
@@ -78,7 +81,7 @@ Create a `.env` file in the project root with the following variables:
 
 ```bash
 git clone <repo-url>
-cd school-delivery-bot
+cd school-delivery-bot1
 python -m venv venv
 
 # Windows
@@ -96,9 +99,14 @@ pip install -r requirements.txt
 ### 3. Configure Environment
 
 ```bash
+# Linux/macOS
 cp .env.example .env
-# Edit .env with your values
+
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
+
+Then edit `.env` with your real values (especially `BOT_TOKEN`, `ADMIN_IDS`, and `REDIS_URL`).
 
 ### 4. Create PostgreSQL Database
 
@@ -120,6 +128,11 @@ python main.py
 
 Logs are written to `logs/app.log` and to the console simultaneously.
 
+### Redis Requirement
+
+The bot requires a reachable Redis instance at startup because FSM storage is Redis-backed.
+If `REDIS_URL` is missing, empty, or not prefixed with `redis://` or `rediss://`, startup fails fast.
+
 ---
 
 ## Docker Deployment
@@ -133,6 +146,8 @@ docker compose up -d
 This starts:
 - `postgres` — PostgreSQL 16 with a named volume (`pgdata`) for data persistence
 - `schoolbridge-bot` — the bot container; automatically runs `alembic upgrade head` before starting
+
+Note: `docker-compose.yml` does not include a Redis service, so `REDIS_URL` in `.env` must point to an existing Redis endpoint.
 
 ### Stopping
 
@@ -241,6 +256,12 @@ Application:  ✅ Running
 ### Bot won't start: `DATABASE_URL is not set`
 Ensure `.env` contains a valid `DATABASE_URL` and that `python-dotenv` is installed.
 
+### Bot won't start: `BOT_TOKEN is not set`
+Ensure `.env` contains a valid Telegram bot token.
+
+### Bot won't start: `REDIS_URL` validation error
+Ensure `.env` contains a non-empty `REDIS_URL` starting with `redis://` or `rediss://`.
+
 ### `asyncpg.InvalidCatalogNameError: database "schoolbridge" does not exist`
 Create the database first:
 ```bash
@@ -257,4 +278,4 @@ Your models are already in sync with the current schema. No action needed.
 Check logs: `docker compose logs schoolbridge-bot`. Usually a missing `.env` variable or unreachable Postgres.
 
 ### Rate limit false positives
-The rate limiter is in-memory and resets on restart. Limit is 5 messages per 60 seconds per user. Adjust `_MAX_REQUESTS` and `_WINDOW_SECONDS` in `bot/middlewares/rate_limit_middleware.py` if needed.
+The rate limiter is in-memory and resets on restart. Limit is 15 messages per 10 seconds per user. Adjust `_MAX_REQUESTS` and `_WINDOW_SECONDS` in `bot/middlewares/rate_limit_middleware.py` if needed.

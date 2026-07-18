@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from database.enums import RequestStatus, TravelStatus, MatchStatus
+from database.enums import RequestStatus, TravelStatus, MatchStatus, Role
 
 
 class Base(DeclarativeBase):
@@ -18,7 +18,7 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True, nullable=False)
     username: Mapped[str | None] = mapped_column(String, nullable=True)
     full_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    role: Mapped[str] = mapped_column(String, default="Student", nullable=False)
+    role: Mapped[str] = mapped_column(String, default=Role.STUDENT.value, nullable=False)
 
     # Relationships
     student_requests: Mapped[list["StudentRequest"]] = relationship(

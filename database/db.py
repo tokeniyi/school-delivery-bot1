@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from config import DATABASE_URL
+from config import DATABASE_URL, DB_POOL_SIZE, DB_MAX_OVERFLOW
 
 # Create async PostgreSQL engine.
 # pool_pre_ping=True validates connections before use to recover from stale connections.
@@ -8,8 +8,8 @@ engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     pool_pre_ping=True,
-    pool_size=20,  # Connection pool size
-    max_overflow=10,  # Maximum overflow connections
+    pool_size=DB_POOL_SIZE,
+    max_overflow=DB_MAX_OVERFLOW,
 )
 
 # Configure the async session factory

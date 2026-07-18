@@ -6,8 +6,10 @@ from aiogram.types import Message
 
 from database.db import async_session
 from database.crud import update_user_role, create_parent_travel, get_match_by_id, create_match
+from database.enums import Role
 from bot.states.parent_states import ParentTravelStates
 from bot.keyboards.yes_no_keyboard import get_yes_no_keyboard
+from bot.keyboards.role_keyboard import PARENT_BUTTON_TEXT
 from services.matching import find_matches
 from services.notifications import notify_admin_match
 
@@ -15,13 +17,13 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-@router.message(F.text.contains("Parent"))
+@router.message(F.text == PARENT_BUTTON_TEXT)
 async def parent_role_selected(message: Message, state: FSMContext) -> None:
     """Triggered when user selects the Parent role. Saves role to DB and starts Parent FSM."""
     telegram_id = message.from_user.id
     
     async with async_session() as session:
-        await update_user_role(session, telegram_id, "parent")
+        await update_user_role(session, telegram_id, Role.PARENT.value)
         
     await state.set_state(ParentTravelStates.origin_location)
     await message.answer(

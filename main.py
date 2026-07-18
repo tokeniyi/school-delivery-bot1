@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 import logging
 import logging.handlers
 import os
@@ -71,41 +72,48 @@ async def main() -> None:
     )
 
     # Redis FSM Storage
-    if REDIS_URL is None:
+    if not REDIS_URL or not REDIS_URL.strip():
         raise RuntimeError("REDIS_URL environment variable is not set")
 
-    redis_client = Redis.from_url(
-        REDIS_URL,
-        decode_responses=True,
-    )
+    if not REDIS_URL.startswith(("redis://", "rediss://")):
+        raise RuntimeError("REDIS_URL must start with redis:// or rediss://")
 
-    storage = RedisStorage(redis=redis_client)
-
-    # Create dispatcher
-    dp = Dispatcher(storage=storage)
-
-    # Register global middlewares
-    dp.update.middleware(ErrorMiddleware())
-    dp.message.middleware(RateLimitMiddleware())
-
-    # Register routers
-    dp.include_router(start_router)
-    dp.include_router(student_router)
-    dp.include_router(parent_router)
-    dp.include_router(admin_router)
-
-    # Delete any stale webhook
-    await bot.delete_webhook(drop_pending_updates=True)
-
-    logger.info("Application started successfully. Bot is now polling.")
-    print("Bot is running...")
-
+    redis_client = None
     try:
+        redis_client = Redis.from_url(
+            REDIS_URL,
+            decode_responses=True,
+        )
+
+        storage = RedisStorage(redis=redis_client)
+
+        # Create dispatcher
+        dp = Dispatcher(storage=storage)
+
+        # Register global middlewares
+        dp.update.middleware(ErrorMiddleware())
+        dp.message.middleware(RateLimitMiddleware())
+
+        # Register routers
+        dp.include_router(start_router)
+        dp.include_router(student_router)
+        dp.include_router(parent_router)
+        dp.include_router(admin_router)
+
+        # Delete any stale webhook
+        await bot.delete_webhook(drop_pending_updates=True)
+
+        logger.info("Application started successfully. Bot is now polling.")
+        print("Bot is running...")
+
         await dp.start_polling(bot)
 
     finally:
-        await bot.session.close()
-        await redis_client.close()
+        with suppress(Exception):
+            await bot.session.close()
+        if redis_client is not None:
+            with suppress(Exception):
+                await redis_client.close()
         logger.info("Application stopped.")
 
 if __name__ == "__main__":

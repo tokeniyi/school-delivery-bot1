@@ -6,7 +6,9 @@ from aiogram.types import Message
 
 from database.db import async_session
 from database.crud import update_user_role, create_student_request, get_match_by_id, create_match
+from database.enums import Role
 from bot.states.student_states import StudentRequestStates
+from bot.keyboards.role_keyboard import STUDENT_BUTTON_TEXT
 from services.matching import find_matches
 from services.notifications import notify_admin_match
 
@@ -14,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-@router.message(F.text.contains("Student"))
+@router.message(F.text == STUDENT_BUTTON_TEXT)
 async def student_role_selected(message: Message, state: FSMContext) -> None:
     """Triggered when user selects the Student role. Saves the role and starts FSM."""
     telegram_id = message.from_user.id
     
     async with async_session() as session:
-        await update_user_role(session, telegram_id, "student")
+        await update_user_role(session, telegram_id, Role.STUDENT.value)
         
     await state.set_state(StudentRequestStates.item_description)
     await message.answer(
