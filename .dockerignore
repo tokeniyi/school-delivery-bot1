@@ -9,6 +9,7 @@
 
 # Environment variables
 **/.env
+**/.env.local
 
 # Distribution / packaging
 **/.Python
