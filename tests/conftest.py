@@ -1,11 +1,13 @@
 import os
-import pytest
+import sys
 import asyncio
-from sqlalchemy import delete
-from database.db import async_session
-from database.crud import create_tables
-from database.models import User, StudentRequest, ParentTravel, Match
+import pytest
 import services.notifications as notifications
+
+# Force SelectorEventLoop on Windows to avoid ProactorEventLoop issues
+# with asyncpg + SQLAlchemy greenlets
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("BOT_TOKEN", "123456:TESTTOKEN")
@@ -26,17 +28,39 @@ class FakeBot:
 
 
 @pytest.fixture(autouse=True)
-def clean_db():
-    """Create tables and remove all rows before each test for isolation (runs sync by calling asyncio.run)."""
-    async def _c():
-        await create_tables()
-        async with async_session() as session:
-            await session.execute(delete(Match))
-            await session.execute(delete(StudentRequest))
-            await session.execute(delete(ParentTravel))
-            await session.execute(delete(User))
-            await session.commit()
-    asyncio.run(_c())
+async def clean_db():
+    """Remove all rows before each test for isolation."""
+    import asyncpg
+    
+    # Read DATABASE_URL from environment to avoid stale config module state
+    dsn = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/schoolbridge")
+    dsn = dsn.replace("postgresql+asyncpg://", "postgresql://")
+    conn = await asyncpg.connect(dsn)
+    try:
+        users_before = await conn.fetchval("SELECT COUNT(*) FROM users")
+        reqs_before = await conn.fetchval("SELECT COUNT(*) FROM student_requests")
+        travels_before = await conn.fetchval("SELECT COUNT(*) FROM parent_travels")
+        matches_before = await conn.fetchval("SELECT COUNT(*) FROM matches")
+        print(f"\n[clean_db] BEFORE: users={users_before}, reqs={reqs_before}, travels={travels_before}, matches={matches_before}")
+        
+        await conn.execute("DELETE FROM matches")
+        await conn.execute("DELETE FROM student_requests")
+        await conn.execute("DELETE FROM parent_travels")
+        await conn.execute("DELETE FROM users")
+        
+        users_after = await conn.fetchval("SELECT COUNT(*) FROM users")
+        reqs_after = await conn.fetchval("SELECT COUNT(*) FROM student_requests")
+        travels_after = await conn.fetchval("SELECT COUNT(*) FROM parent_travels")
+        matches_after = await conn.fetchval("SELECT COUNT(*) FROM matches")
+        print(f"[clean_db] AFTER: users={users_after}, reqs={reqs_after}, travels={travels_after}, matches={matches_after}")
+    finally:
+        await conn.close()
+    
+    # Dispose pooled connections so the next test gets fresh connections
+    # that see the committed deletes above.
+    from database.db import engine
+    await engine.dispose()
+    
     yield
 
 
@@ -45,9 +69,3 @@ def fake_bot():
     bot = FakeBot()
     notifications._notification_bot = bot
     return bot
-
-
-@pytest.fixture
-def anyio_backend():
-    # allow pytest-asyncio / anyio compatibility if used
-    return 'asyncio'

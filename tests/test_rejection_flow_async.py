@@ -20,6 +20,9 @@ async def test_rejection_flow(fake_bot):
     candidates = await find_matches()
     assert len(candidates) == 1
 
+    candidates = await find_matches()
+    assert len(candidates) == 1
+
     req_id, trv_id = candidates[0]
     async with async_session() as session:
         new_match = await create_match(session, req_id, trv_id)

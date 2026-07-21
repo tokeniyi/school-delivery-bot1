@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -82,10 +83,7 @@ async def upsert_student_request(
         raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
 
     existing = await session.execute(
-        select(StudentRequest).where(
-            StudentRequest.user_id == user.id,
-            StudentRequest.status == RequestStatus.PENDING.value
-        )
+        select(StudentRequest).where(StudentRequest.user_id == user.id)
     )
     student_request = existing.scalars().first()
 
@@ -156,10 +154,7 @@ async def upsert_parent_travel(
         raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
 
     existing = await session.execute(
-        select(ParentTravel).where(
-            ParentTravel.user_id == user.id,
-            ParentTravel.status == TravelStatus.AVAILABLE.value
-        )
+        select(ParentTravel).where(ParentTravel.user_id == user.id)
     )
     parent_travel = existing.scalars().first()
 
@@ -216,44 +211,31 @@ async def create_parent_travel(
 
 # ===== Match CRUD =====
 
-async def match_exists(session: AsyncSession, request_id: int, travel_id: int) -> bool:
-    """
-    Check if an active match between a specific request and travel already exists.
-    Only consider matches with status 'pending_review' or 'approved'.
-    Ignore rejected matches so requests can be re-matched.
-    """
-    stmt = select(Match).where(
-        Match.student_request_id == request_id,
-        Match.parent_travel_id == travel_id,
-        Match.status.in_([MatchStatus.PENDING_REVIEW.value, MatchStatus.APPROVED.value])
-    )
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none() is not None
-
-
 async def create_match(session: AsyncSession, request_id: int, travel_id: int) -> Match | None:
     """
     Create a new potential match record with status 'pending_review'.
-    Returns None if match already exists to prevent duplicates.
+
+    Race-condition safe: relies on the composite UNIQUE constraint
+    (student_request_id, parent_travel_id) in the database. If a concurrent
+    insert lands first, the resulting IntegrityError is swallowed and None is
+    returned instead of raising, so callers never see a duplicate match.
     """
+    new_match = Match(
+        student_request_id=request_id,
+        parent_travel_id=travel_id,
+        status=MatchStatus.PENDING_REVIEW.value
+    )
+    session.add(new_match)
     try:
-        # Double-check within transaction to prevent race conditions
-        if await match_exists(session, request_id, travel_id):
-            logger.warning(f"Match already exists: Request#{request_id} ↔ Travel#{travel_id}")
-            return None
-        
-        new_match = Match(
-            student_request_id=request_id,
-            parent_travel_id=travel_id,
-            status=MatchStatus.PENDING_REVIEW.value
-        )
-        session.add(new_match)
         await session.commit()
         logger.info(f"Created Match#{new_match.id}: Request#{request_id} ↔ Travel#{travel_id}")
         return new_match
-    except Exception:
+    except IntegrityError:
         await session.rollback()
-        raise
+        logger.warning(
+            f"Match already exists (race-safe skip): Request#{request_id} ↔ Travel#{travel_id}"
+        )
+        return None
 
 
 async def get_pending_matches(session: AsyncSession) -> list[Match]:

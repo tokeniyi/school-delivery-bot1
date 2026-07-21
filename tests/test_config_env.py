@@ -1,5 +1,6 @@
 import importlib
 import sys
+from unittest.mock import patch
 
 import pytest
 
@@ -12,7 +13,9 @@ def _reload_config(monkeypatch, **values):
         monkeypatch.setenv(key, value)
 
     sys.modules.pop("config", None)
-    return importlib.import_module("config")
+    # Prevent dotenv.load_dotenv from reading .env files during config import
+    with patch("dotenv.load_dotenv", lambda *args, **kwargs: None):
+        return importlib.import_module("config")
 
 
 def test_admin_ids_falls_back_to_empty_list(monkeypatch):
@@ -31,4 +34,5 @@ def test_missing_bot_token_fails_fast(monkeypatch):
         _reload_config(
             monkeypatch,
             ENVIRONMENT="development",
+            DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/schoolbridge",
         )
