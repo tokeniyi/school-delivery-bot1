@@ -76,3 +76,8 @@ DB_MAX_OVERFLOW = get_env_int("DB_MAX_OVERFLOW", 10)
 
 # ===== Logging =====
 LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
+
+# ===== Matching / Distance =====
+DISTANCE_PROVIDER = get_env("DISTANCE_PROVIDER", "mock")
+MAX_TRIP_STOPS = get_env_int("MAX_TRIP_STOPS", 4)
+OSRM_BASE_URL = get_env("OSRM_BASE_URL", "http://osrm:5000")

@@ -1,13 +1,13 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-STUDENT_BUTTON_TEXT = "🎓 Student"
-DRIVER_BUTTON_TEXT = "🚗 Driver"
+DIRECTION_OUTBOUND = "CU → Lagos"
+DIRECTION_INBOUND = "Lagos → CU"
 
-def get_role_keyboard() -> ReplyKeyboardMarkup:
+def get_direction_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
         [
-            KeyboardButton(text=STUDENT_BUTTON_TEXT),
-            KeyboardButton(text=DRIVER_BUTTON_TEXT),
+            KeyboardButton(text=DIRECTION_OUTBOUND),
+            KeyboardButton(text=DIRECTION_INBOUND),
         ]
     ]
     return ReplyKeyboardMarkup(

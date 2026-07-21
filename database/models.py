@@ -1,17 +1,15 @@
 from datetime import datetime, timezone
-from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index, UniqueConstraint
+from sqlalchemy import BigInteger, String, ForeignKey, Boolean, Date, DateTime, Integer, Index, UniqueConstraint, Float
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from database.enums import RequestStatus, TravelStatus, MatchStatus, Role
+from database.enums import RequestStatus, TripStatus, MatchStatus, Role, GeocodeSource
 
 
 class Base(DeclarativeBase):
-    """Base class for all database models."""
     pass
 
 
 class User(Base):
-    """User database model to store students, parents, and admins."""
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -20,11 +18,10 @@ class User(Base):
     full_name: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, default=Role.STUDENT.value, nullable=False)
 
-    # Relationships
-    student_requests: Mapped[list["StudentRequest"]] = relationship(
+    driver_trips: Mapped[list["DriverTrip"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    parent_travels: Mapped[list["ParentTravel"]] = relationship(
+    delivery_requests: Mapped[list["DeliveryRequest"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -32,101 +29,135 @@ class User(Base):
         return f"<User id={self.id} telegram_id={self.telegram_id} username={self.username} role={self.role}>"
 
 
-class StudentRequest(Base):
-    """StudentRequest database model to store student delivery requests."""
-    __tablename__ = "student_requests"
+class Location(Base):
+    __tablename__ = "locations"
     __table_args__ = (
-        Index("ix_student_requests_status", "status"),
-        Index("ix_student_requests_delivery_date", "delivery_date"),
-        Index("ix_student_requests_destination_school", "destination_school"),
-        Index("ix_student_requests_pickup_location", "pickup_location"),
+        Index("ix_locations_lat_lng", "lat", "lng"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    raw_text: Mapped[str] = mapped_column(String, nullable=False)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lng: Mapped[float] = mapped_column(Float, nullable=False)
+    geocode_source: Mapped[str] = mapped_column(
+        String, default=GeocodeSource.MANUAL.value, nullable=False
+    )
+    resolved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<Location id={self.id} raw={self.raw_text!r} lat={self.lat} lng={self.lng}>"
+
+
+class DriverTrip(Base):
+    __tablename__ = "driver_trips"
+    __table_args__ = (
+        Index("ix_driver_trips_status", "status"),
+        Index("ix_driver_trips_travel_date", "travel_date"),
+        Index("ix_driver_trips_direction", "direction"),
+        Index("ix_driver_trips_user_id", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    direction: Mapped[str] = mapped_column(String, nullable=False)
+    travel_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    primary_location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String, default=TripStatus.OPEN.value, nullable=False)
+    max_stops: Mapped[int] = mapped_column(Integer, default=4, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    user: Mapped["User"] = relationship(back_populates="driver_trips")
+    primary_location: Mapped["Location"] = relationship()
+    trip_matches: Mapped[list["TripMatch"]] = relationship(
+        back_populates="driver_trip", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<DriverTrip id={self.id} user_id={self.user_id} direction={self.direction} date={self.travel_date} status={self.status}>"
+
+
+class DeliveryRequest(Base):
+    __tablename__ = "delivery_requests"
+    __table_args__ = (
+        Index("ix_delivery_requests_status", "status"),
+        Index("ix_delivery_requests_travel_date", "travel_date"),
+        Index("ix_delivery_requests_direction", "direction"),
+        Index("ix_delivery_requests_user_id", "user_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     item_description: Mapped[str] = mapped_column(String, nullable=False)
-    pickup_location: Mapped[str] = mapped_column(String, nullable=False)
-    destination_school: Mapped[str] = mapped_column(String, nullable=False)
-    delivery_date: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String, default=RequestStatus.PENDING.value, nullable=False
+    direction: Mapped[str] = mapped_column(String, nullable=False)
+    location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"), nullable=False)
+    travel_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String, default=RequestStatus.PENDING.value, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
-    # Relationships
-    user: Mapped["User"] = relationship(back_populates="student_requests")
+    user: Mapped["User"] = relationship(back_populates="delivery_requests")
+    location: Mapped["Location"] = relationship()
+    trip_matches: Mapped[list["TripMatch"]] = relationship(
+        back_populates="delivery_request", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
-        return f"<StudentRequest id={self.id} user_id={self.user_id} item={self.item_description} status={self.status}>"
+        return f"<DeliveryRequest id={self.id} user_id={self.user_id} direction={self.direction} date={self.travel_date} status={self.status}>"
 
 
-class ParentTravel(Base):
-    """ParentTravel database model to store parent travel availability schedules."""
-    __tablename__ = "parent_travels"
+class TripMatch(Base):
+    __tablename__ = "trip_matches"
     __table_args__ = (
-        Index("ix_parent_travels_status", "status"),
-        Index("ix_parent_travels_travel_date", "travel_date"),
-        Index("ix_parent_travels_destination_school", "destination_school"),
-        Index("ix_parent_travels_origin_location", "origin_location"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    origin_location: Mapped[str] = mapped_column(String, nullable=False)
-    destination_school: Mapped[str] = mapped_column(String, nullable=False)
-    travel_date: Mapped[str] = mapped_column(String, nullable=False)
-    can_carry_packages: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String, default=TravelStatus.AVAILABLE.value, nullable=False
-    )
-
-    # Relationships
-    user: Mapped["User"] = relationship(back_populates="parent_travels")
-
-    def __repr__(self) -> str:
-        return f"<ParentTravel id={self.id} user_id={self.user_id} origin={self.origin_location} status={self.status}>"
-
-
-class Match(Base):
-    """Match database model to store potential matches between student requests and parent travels."""
-    __tablename__ = "matches"
-    __table_args__ = (
-        Index("ix_matches_status", "status"),
-        Index("ix_matches_student_request_id", "student_request_id"),
-        Index("ix_matches_parent_travel_id", "parent_travel_id"),
-        Index("ix_matches_created_at", "created_at"),
+        Index("ix_trip_matches_status", "status"),
+        Index("ix_trip_matches_driver_trip_id", "driver_trip_id"),
+        Index("ix_trip_matches_delivery_request_id", "delivery_request_id"),
+        Index("ix_trip_matches_created_at", "created_at"),
         UniqueConstraint(
-            "student_request_id",
-            "parent_travel_id",
-            name="uq_matches_student_request_parent_travel",
+            "driver_trip_id",
+            "delivery_request_id",
+            name="uq_trip_matches_driver_trip_delivery_request",
         ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    student_request_id: Mapped[int] = mapped_column(ForeignKey("student_requests.id"), nullable=False)
-    parent_travel_id: Mapped[int] = mapped_column(ForeignKey("parent_travels.id"), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String, default=MatchStatus.PENDING_REVIEW.value, nullable=False
-    )
+    driver_trip_id: Mapped[int] = mapped_column(ForeignKey("driver_trips.id"), nullable=False)
+    delivery_request_id: Mapped[int] = mapped_column(ForeignKey("delivery_requests.id"), nullable=False)
+    sequence_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    distance_from_previous_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    time_from_previous_min: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String, default=MatchStatus.PENDING_REVIEW.value, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=True
+        nullable=True,
     )
 
-    # Relationships
-    student_request: Mapped["StudentRequest"] = relationship(lazy="selectin")
-    parent_travel: Mapped["ParentTravel"] = relationship(lazy="selectin")
+    driver_trip: Mapped["DriverTrip"] = relationship(back_populates="trip_matches")
+    delivery_request: Mapped["DeliveryRequest"] = relationship(back_populates="trip_matches")
 
     def __repr__(self) -> str:
-        return f"<Match id={self.id} request={self.student_request_id} travel={self.parent_travel_id} status={self.status}>"
+        return (
+            f"<TripMatch id={self.id} trip={self.driver_trip_id} req={self.delivery_request_id} "
+            f"seq={self.sequence_index} status={self.status}>"
+        )
 
 
 class AuditLog(Base):
-    """AuditLog model to track all admin actions on matches."""
     __tablename__ = "audit_logs"
     __table_args__ = (
         Index("ix_audit_logs_admin_id", "admin_id"),
@@ -142,7 +173,7 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
 
     def __repr__(self) -> str:

@@ -1,20 +1,34 @@
 import logging
-from sqlalchemy import select
+from datetime import date, datetime, timezone
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models import User, StudentRequest, ParentTravel, Match, AuditLog
-from database.enums import RequestStatus, TravelStatus, MatchStatus, Role
-from datetime import datetime, timezone
+from database.models import (
+    AuditLog,
+    DeliveryRequest,
+    DriverTrip,
+    Location,
+    Match,
+    TripMatch,
+    User,
+)
+from database.enums import (
+    GeocodeSource,
+    MatchStatus,
+    RequestStatus,
+    Role,
+    TripStatus,
+)
 
 logger = logging.getLogger(__name__)
 
 
 # ===== Database Setup =====
 
+
 async def create_tables():
-    """Create all database tables from models."""
     from database.db import engine
     from database.models import Base
     async with engine.begin() as conn:
@@ -23,19 +37,19 @@ async def create_tables():
 
 # ===== User CRUD =====
 
+
 async def get_user_by_telegram_id(session: AsyncSession, telegram_id: int) -> User | None:
-    """Retrieve user record by Telegram ID."""
     stmt = select(User).where(User.telegram_id == telegram_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def create_user(session: AsyncSession, telegram_id: int, username: str | None, full_name: str | None) -> User:
-    """
-    Insert new user if not exists; prevent duplicates.
-    Updates username and full_name if the user already exists.
-    Default role is 'Student'.
-    """
+async def create_user(
+    session: AsyncSession,
+    telegram_id: int,
+    username: str | None,
+    full_name: str | None,
+) -> User:
     existing_user = await get_user_by_telegram_id(session, telegram_id)
     if existing_user:
         existing_user.username = username
@@ -47,7 +61,7 @@ async def create_user(session: AsyncSession, telegram_id: int, username: str | N
         telegram_id=telegram_id,
         username=username,
         full_name=full_name,
-        role=Role.STUDENT.value
+        role=Role.STUDENT.value,
     )
     session.add(new_user)
     await session.commit()
@@ -55,8 +69,9 @@ async def create_user(session: AsyncSession, telegram_id: int, username: str | N
     return new_user
 
 
-async def update_user_role(session: AsyncSession, telegram_id: int, role: str) -> User | None:
-    """Assign or update a user's role (Student, Parent, Admin)."""
+async def update_user_role(
+    session: AsyncSession, telegram_id: int, role: str
+) -> User | None:
     user = await get_user_by_telegram_id(session, telegram_id)
     if user:
         user.role = role
@@ -64,276 +79,252 @@ async def update_user_role(session: AsyncSession, telegram_id: int, role: str) -
     return user
 
 
-# ===== Student Request CRUD =====
+# ===== Location CRUD =====
 
-async def upsert_student_request(
+
+async def get_or_create_location(
     session: AsyncSession,
-    telegram_id: int,
-    item_description: str,
-    pickup_location: str,
-    destination_school: str,
-    delivery_date: str,
-) -> StudentRequest:
-    """
-    Upsert delivery request associated with a User.
-    If a pending request exists, update it. Otherwise, create a new one.
-    """
-    user = await get_user_by_telegram_id(session, telegram_id)
-    if not user:
-        raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
-
-    existing = await session.execute(
-        select(StudentRequest).where(StudentRequest.user_id == user.id)
-    )
-    student_request = existing.scalars().first()
-
-    try:
-        if student_request:
-            student_request.item_description = item_description
-            student_request.pickup_location = pickup_location
-            student_request.destination_school = destination_school
-            student_request.delivery_date = delivery_date
-            await session.commit()
-            logger.info(f"Updated existing StudentRequest#{student_request.id} for telegram_id={telegram_id}")
-            return student_request
-
-        new_request = StudentRequest(
-            user_id=user.id,
-            item_description=item_description,
-            pickup_location=pickup_location,
-            destination_school=destination_school,
-            delivery_date=delivery_date,
-            status=RequestStatus.PENDING.value
-        )
-        session.add(new_request)
-        await session.commit()
-        logger.info(
-            f"Created new StudentRequest#{new_request.id} for telegram_id={telegram_id} "
-            f"item={item_description!r} date={delivery_date}"
-        )
-        return new_request
-    except Exception:
-        await session.rollback()
-        raise
-
-
-async def create_student_request(
-    session: AsyncSession,
-    telegram_id: int,
-    item_description: str,
-    pickup_location: str,
-    destination_school: str,
-    delivery_date: str,
-) -> StudentRequest:
-    """
-    Alias for compatibility with existing handlers.
-    Delegates to upsert_student_request.
-    """
-    return await upsert_student_request(
-        session, telegram_id, item_description,
-        pickup_location, destination_school, delivery_date
-    )
-
-
-# ===== Parent Travel CRUD =====
-
-async def upsert_parent_travel(
-    session: AsyncSession,
-    telegram_id: int,
-    origin_location: str,
-    destination_school: str,
-    travel_date: str,
-    can_carry_packages: bool,
-) -> ParentTravel:
-    """
-    Upsert parent travel availability.
-    If an available travel exists, update it. Otherwise, create a new one.
-    """
-    user = await get_user_by_telegram_id(session, telegram_id)
-    if not user:
-        raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
-
-    existing = await session.execute(
-        select(ParentTravel).where(ParentTravel.user_id == user.id)
-    )
-    parent_travel = existing.scalars().first()
-
-    new_status = TravelStatus.AVAILABLE.value if can_carry_packages else TravelStatus.UNAVAILABLE.value
-
-    try:
-        if parent_travel:
-            parent_travel.origin_location = origin_location
-            parent_travel.destination_school = destination_school
-            parent_travel.travel_date = travel_date
-            parent_travel.can_carry_packages = can_carry_packages
-            parent_travel.status = new_status
-            await session.commit()
-            logger.info(f"Updated existing ParentTravel#{parent_travel.id} for telegram_id={telegram_id}")
-            return parent_travel
-
-        new_travel = ParentTravel(
-            user_id=user.id,
-            origin_location=origin_location,
-            destination_school=destination_school,
-            travel_date=travel_date,
-            can_carry_packages=can_carry_packages,
-            status=new_status
-        )
-        session.add(new_travel)
-        await session.commit()
-        logger.info(
-            f"Created new ParentTravel#{new_travel.id} for telegram_id={telegram_id} "
-            f"date={travel_date} can_carry={can_carry_packages}"
-        )
-        return new_travel
-    except Exception:
-        await session.rollback()
-        raise
-
-
-async def create_parent_travel(
-    session: AsyncSession,
-    telegram_id: int,
-    origin_location: str,
-    destination_school: str,
-    travel_date: str,
-    can_carry_packages: bool,
-) -> ParentTravel:
-    """
-    Alias for compatibility with existing handlers.
-    Delegates to upsert_parent_travel.
-    """
-    return await upsert_parent_travel(
-        session, telegram_id, origin_location,
-        destination_school, travel_date, can_carry_packages
-    )
-
-
-# ===== Match CRUD =====
-
-async def create_match(session: AsyncSession, request_id: int, travel_id: int) -> Match | None:
-    """
-    Create a new potential match record with status 'pending_review'.
-
-    Race-condition safe: relies on the composite UNIQUE constraint
-    (student_request_id, parent_travel_id) in the database. If a concurrent
-    insert lands first, the resulting IntegrityError is swallowed and None is
-    returned instead of raising, so callers never see a duplicate match.
-    """
-    new_match = Match(
-        student_request_id=request_id,
-        parent_travel_id=travel_id,
-        status=MatchStatus.PENDING_REVIEW.value
-    )
-    session.add(new_match)
-    try:
-        await session.commit()
-        logger.info(f"Created Match#{new_match.id}: Request#{request_id} ↔ Travel#{travel_id}")
-        return new_match
-    except IntegrityError:
-        await session.rollback()
-        logger.warning(
-            f"Match already exists (race-safe skip): Request#{request_id} ↔ Travel#{travel_id}"
-        )
-        return None
-
-
-async def get_pending_matches(session: AsyncSession) -> list[Match]:
-    """Fetch all matches with status 'pending_review', including related request and travel objects."""
-    stmt = (
-        select(Match)
-        .where(Match.status == MatchStatus.PENDING_REVIEW.value)
-        .options(
-            selectinload(Match.student_request).selectinload(StudentRequest.user),
-            selectinload(Match.parent_travel).selectinload(ParentTravel.user)
-        )
-    )
+    raw_text: str,
+    lat: float,
+    lng: float,
+    geocode_source: GeocodeSource = GeocodeSource.MANUAL,
+) -> Location:
+    stmt = select(Location).where(Location.raw_text == raw_text)
     result = await session.execute(stmt)
-    return list(result.scalars().all())
+    location = result.scalar_one_or_none()
+    if location:
+        return location
+
+    location = Location(
+        raw_text=raw_text,
+        lat=lat,
+        lng=lng,
+        geocode_source=geocode_source.value,
+        resolved_at=datetime.now(timezone.utc),
+    )
+    session.add(location)
+    await session.commit()
+    logger.info(f"Created Location#{location.id}: {raw_text!r}")
+    return location
 
 
-async def get_match_by_id(session: AsyncSession, match_id: int) -> Match | None:
-    """Retrieve a specific match by ID with eager loading of related request, travel, and users."""
+# ===== DriverTrip CRUD =====
+
+
+async def create_driver_trip(
+    session: AsyncSession,
+    telegram_id: int,
+    direction: str,
+    travel_date: date,
+    primary_location: Location,
+    max_stops: int = 4,
+) -> DriverTrip:
+    user = await get_user_by_telegram_id(session, telegram_id)
+    if not user:
+        raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
+
+    trip = DriverTrip(
+        user_id=user.id,
+        direction=direction,
+        travel_date=travel_date,
+        primary_location_id=primary_location.id,
+        max_stops=max_stops,
+        status=TripStatus.OPEN.value,
+    )
+    session.add(trip)
+    await session.commit()
+    logger.info(
+        f"Created DriverTrip#{trip.id} for telegram_id={telegram_id} "
+        f"direction={direction} date={travel_date}"
+    )
+    return trip
+
+
+async def get_driver_trip_by_id(
+    session: AsyncSession, trip_id: int
+) -> DriverTrip | None:
     stmt = (
-        select(Match)
-        .where(Match.id == match_id)
+        select(DriverTrip)
+        .where(DriverTrip.id == trip_id)
         .options(
-            selectinload(Match.student_request).selectinload(StudentRequest.user),
-            selectinload(Match.parent_travel).selectinload(ParentTravel.user)
+            selectinload(DriverTrip.primary_location),
+            selectinload(DriverTrip.trip_matches).selectinload(TripMatch.delivery_request),
+            selectinload(DriverTrip.user),
         )
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def approve_match(session: AsyncSession, match_id: int, admin_id: int | None = None) -> Match | None:
-    """
-    Approve a match:
-    - Set match status to 'approved'
-    - Set student request status to 'matched'
-    - Set parent travel status to 'matched'
-    - Record timezone-aware reviewed_at timestamp
-    - Create audit log entry
-    """
+# ===== DeliveryRequest CRUD =====
+
+
+async def create_delivery_request(
+    session: AsyncSession,
+    telegram_id: int,
+    item_description: str,
+    direction: str,
+    location: Location,
+    travel_date: date,
+) -> DeliveryRequest:
+    user = await get_user_by_telegram_id(session, telegram_id)
+    if not user:
+        raise ValueError(f"User with telegram_id {telegram_id} does not exist.")
+
+    req = DeliveryRequest(
+        user_id=user.id,
+        item_description=item_description,
+        direction=direction,
+        location_id=location.id,
+        travel_date=travel_date,
+        status=RequestStatus.PENDING.value,
+    )
+    session.add(req)
+    await session.commit()
+    logger.info(
+        f"Created DeliveryRequest#{req.id} for telegram_id={telegram_id} "
+        f"direction={direction} date={travel_date}"
+    )
+    return req
+
+
+async def get_delivery_request_by_id(
+    session: AsyncSession, request_id: int
+) -> DeliveryRequest | None:
+    stmt = (
+        select(DeliveryRequest)
+        .where(DeliveryRequest.id == request_id)
+        .options(
+            selectinload(DeliveryRequest.location),
+            selectinload(DeliveryRequest.user),
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# ===== TripMatch CRUD =====
+
+
+async def create_trip_match(
+    session: AsyncSession,
+    driver_trip_id: int,
+    delivery_request_id: int,
+    sequence_index: int,
+    distance_from_previous_km: float | None = None,
+    time_from_previous_min: float | None = None,
+) -> TripMatch | None:
+    new_match = TripMatch(
+        driver_trip_id=driver_trip_id,
+        delivery_request_id=delivery_request_id,
+        sequence_index=sequence_index,
+        distance_from_previous_km=distance_from_previous_km,
+        time_from_previous_min=time_from_previous_min,
+        status=MatchStatus.PENDING_REVIEW.value,
+    )
+    session.add(new_match)
     try:
-        match = await get_match_by_id(session, match_id)
+        await session.commit()
+        logger.info(
+            f"Created TripMatch#{new_match.id}: Trip#{driver_trip_id} ↔ Request#{delivery_request_id} "
+            f"seq={sequence_index}"
+        )
+        return new_match
+    except IntegrityError:
+        await session.rollback()
+        logger.warning(
+            f"TripMatch already exists (race-safe skip): Trip#{driver_trip_id} ↔ Request#{delivery_request_id}"
+        )
+        return None
+
+
+async def get_trip_match_by_id(
+    session: AsyncSession, match_id: int
+) -> TripMatch | None:
+    stmt = (
+        select(TripMatch)
+        .where(TripMatch.id == match_id)
+        .options(
+            selectinload(TripMatch.driver_trip).selectinload(DriverTrip.primary_location),
+            selectinload(TripMatch.driver_trip).selectinload(DriverTrip.user),
+            selectinload(TripMatch.delivery_request).selectinload(DeliveryRequest.location),
+            selectinload(TripMatch.delivery_request).selectinload(DeliveryRequest.user),
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_pending_trip_matches(session: AsyncSession) -> list[TripMatch]:
+    stmt = (
+        select(TripMatch)
+        .where(TripMatch.status == MatchStatus.PENDING_REVIEW.value)
+        .options(
+            selectinload(TripMatch.driver_trip).selectinload(DriverTrip.primary_location),
+            selectinload(TripMatch.driver_trip).selectinload(DriverTrip.user),
+            selectinload(TripMatch.delivery_request).selectinload(DeliveryRequest.location),
+            selectinload(TripMatch.delivery_request).selectinload(DeliveryRequest.user),
+        )
+        .order_by(TripMatch.driver_trip_id.asc(), TripMatch.sequence_index.asc())
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def approve_trip_match(
+    session: AsyncSession, match_id: int, admin_id: int | None = None
+) -> TripMatch | None:
+    try:
+        match = await get_trip_match_by_id(session, match_id)
         if not match or match.status != MatchStatus.PENDING_REVIEW.value:
             return None
 
         match.status = MatchStatus.APPROVED.value
         match.reviewed_at = datetime.now(timezone.utc)
-        match.student_request.status = RequestStatus.MATCHED.value
-        match.parent_travel.status = TravelStatus.MATCHED.value
+        match.delivery_request.status = RequestStatus.MATCHED.value
 
         if admin_id:
             audit = AuditLog(
                 admin_id=admin_id,
                 action="approve",
-                entity_type="match",
+                entity_type="trip_match",
                 entity_id=match_id,
                 created_at=datetime.now(timezone.utc),
             )
             session.add(audit)
 
         await session.commit()
-        logger.info(f"Match#{match_id} approved by admin_id={admin_id}")
+        logger.info(f"TripMatch#{match_id} approved by admin_id={admin_id}")
         return match
     except Exception:
         await session.rollback()
         raise
 
 
-async def reject_match(session: AsyncSession, match_id: int, admin_id: int | None = None) -> Match | None:
-    """
-    Reject a match:
-    - Set match status to 'rejected'
-    - Reset student request status to 'pending' (so it can be re-matched)
-    - Reset parent travel status to 'available'
-    - Record timezone-aware reviewed_at timestamp
-    - Create audit log entry
-    """
+async def reject_trip_match(
+    session: AsyncSession, match_id: int, admin_id: int | None = None
+) -> TripMatch | None:
     try:
-        match = await get_match_by_id(session, match_id)
+        match = await get_trip_match_by_id(session, match_id)
         if not match or match.status != MatchStatus.PENDING_REVIEW.value:
             return None
 
         match.status = MatchStatus.REJECTED.value
         match.reviewed_at = datetime.now(timezone.utc)
-        match.student_request.status = RequestStatus.PENDING.value
-        match.parent_travel.status = TravelStatus.AVAILABLE.value
+        match.delivery_request.status = RequestStatus.PENDING.value
 
         if admin_id:
             audit = AuditLog(
                 admin_id=admin_id,
                 action="reject",
-                entity_type="match",
+                entity_type="trip_match",
                 entity_id=match_id,
                 created_at=datetime.now(timezone.utc),
             )
             session.add(audit)
 
         await session.commit()
-        logger.info(f"Match#{match_id} rejected by admin_id={admin_id}")
+        logger.info(f"TripMatch#{match_id} rejected by admin_id={admin_id}")
         return match
     except Exception:
         await session.rollback()
@@ -342,6 +333,7 @@ async def reject_match(session: AsyncSession, match_id: int, admin_id: int | Non
 
 # ===== Audit Log =====
 
+
 async def create_audit_log(
     session: AsyncSession,
     admin_id: int,
@@ -349,7 +341,6 @@ async def create_audit_log(
     entity_type: str,
     entity_id: int,
 ) -> AuditLog:
-    """Create a standalone audit log entry for an admin action."""
     try:
         entry = AuditLog(
             admin_id=admin_id,
@@ -360,7 +351,9 @@ async def create_audit_log(
         )
         session.add(entry)
         await session.commit()
-        logger.info(f"AuditLog#{entry.id}: admin={admin_id} action={action} {entity_type}#{entity_id}")
+        logger.info(
+            f"AuditLog#{entry.id}: admin={admin_id} action={action} {entity_type}#{entity_id}"
+        )
         return entry
     except Exception:
         await session.rollback()

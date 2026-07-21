@@ -5,33 +5,32 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database.db import async_session
-from database.crud import update_user_role, create_student_request
+from database.crud import update_user_role, create_delivery_request, get_or_create_location
 from database.enums import Role
 from bot.states.student_states import StudentRequestStates
 from bot.keyboards.role_keyboard import STUDENT_BUTTON_TEXT
+from bot.keyboards.direction_keyboard import get_direction_keyboard
 from services.matching_service import MatchingService
 
 logger = logging.getLogger(__name__)
 
 router = Router()
 
+
 @router.message(F.text == STUDENT_BUTTON_TEXT)
 async def student_role_selected(message: Message, state: FSMContext) -> None:
-    """Triggered when user selects the Student role. Saves the role and starts FSM."""
     telegram_id = message.from_user.id
-    
     async with async_session() as session:
         await update_user_role(session, telegram_id, Role.STUDENT.value)
-        
     await state.set_state(StudentRequestStates.item_description)
     await message.answer(
         "Let's create your delivery request.\n\n"
         "What item would you like delivered?"
     )
 
+
 @router.message(StudentRequestStates.item_description)
 async def process_item_description(message: Message, state: FSMContext) -> None:
-    """Collects and validates the item description."""
     text = message.text.strip() if message.text else ""
     if not text or len(text) < 3:
         await message.answer(
@@ -47,48 +46,49 @@ async def process_item_description(message: Message, state: FSMContext) -> None:
         return
 
     await state.update_data(item_description=text)
-    await state.set_state(StudentRequestStates.pickup_location)
-    await message.answer("Where should the package be picked up?")
+    await state.set_state(StudentRequestStates.direction)
+    await message.answer(
+        "Which direction is this delivery?\n\n",
+        reply_markup=get_direction_keyboard(),
+    )
 
-@router.message(StudentRequestStates.pickup_location)
-async def process_pickup_location(message: Message, state: FSMContext) -> None:
-    """Collects and validates the pickup location."""
+
+@router.message(StudentRequestStates.direction)
+async def process_direction(message: Message, state: FSMContext) -> None:
+    text = message.text.strip() if message.text else ""
+    if text not in ("CU → Lagos", "Lagos → CU"):
+        await message.answer(
+            "Please select a direction from the options below:",
+            reply_markup=get_direction_keyboard(),
+        )
+        return
+
+    direction = "outbound" if text == "CU → Lagos" else "inbound"
+    await state.update_data(direction=direction)
+    await state.set_state(StudentRequestStates.location)
+    await message.answer(
+        "Where in Lagos should the package be picked up / delivered to?\n\n"
+        "Enter a landmark, address, or area name."
+    )
+
+
+@router.message(StudentRequestStates.location)
+async def process_location(message: Message, state: FSMContext) -> None:
     text = message.text.strip() if message.text else ""
     if not text or len(text) < 2:
         await message.answer(
-            "Pickup location must be at least 2 characters long.\n"
-            "Where should the package be picked up?"
+            "Location must be at least 2 characters long.\n"
+            "Where in Lagos should the package be picked up / delivered to?"
         )
         return
     if len(text) > 100:
         await message.answer(
-            "Pickup location cannot exceed 100 characters.\n"
-            "Where should the package be picked up?"
+            "Location cannot exceed 100 characters.\n"
+            "Where in Lagos should the package be picked up / delivered to?"
         )
         return
 
-    await state.update_data(pickup_location=text)
-    await state.set_state(StudentRequestStates.destination_school)
-    await message.answer("Which school should the item be delivered to?")
-
-@router.message(StudentRequestStates.destination_school)
-async def process_destination_school(message: Message, state: FSMContext) -> None:
-    """Collects and validates the destination school."""
-    text = message.text.strip() if message.text else ""
-    if not text:
-        await message.answer(
-            "Destination school cannot be empty.\n"
-            "Which school should the item be delivered to?"
-        )
-        return
-    if len(text) > 100:
-        await message.answer(
-            "Destination school cannot exceed 100 characters.\n"
-            "Which school should the item be delivered to?"
-        )
-        return
-
-    await state.update_data(destination_school=text)
+    await state.update_data(location=text)
     await state.set_state(StudentRequestStates.delivery_date)
     await message.answer(
         "What is your preferred delivery date?\n\n"
@@ -99,10 +99,8 @@ async def process_destination_school(message: Message, state: FSMContext) -> Non
 
 @router.message(StudentRequestStates.delivery_date)
 async def process_delivery_date(message: Message, state: FSMContext) -> None:
-    """Collects, parses, and validates the preferred delivery date, then saves the request."""
     text = message.text.strip() if message.text else ""
-    
-    # 1. Parse date and check format (YYYY-MM-DD)
+
     try:
         parsed_date = datetime.strptime(text, "%Y-%m-%d").date()
     except ValueError:
@@ -112,7 +110,6 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
         )
         return
 
-    # 2. Check if the date is in the past
     if parsed_date < date.today():
         await message.answer(
             "Delivery date cannot be in the past.\n"
@@ -120,39 +117,39 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
         )
         return
 
-    # Update date in state
-    await state.update_data(delivery_date=text)
-
-    # 3. Retrieve all FSM context data
     data = await state.get_data()
     telegram_id = message.from_user.id
 
-    # 4. Save the request to the database
+    mock_lat = 6.5244
+    mock_lng = 3.3792
     async with async_session() as session:
-        await create_student_request(
+        location = await get_or_create_location(
+            session=session,
+            raw_text=data["location"],
+            lat=mock_lat,
+            lng=mock_lng,
+        )
+        await create_delivery_request(
             session=session,
             telegram_id=telegram_id,
             item_description=data["item_description"],
-            pickup_location=data["pickup_location"],
-            destination_school=data["destination_school"],
-            delivery_date=data["delivery_date"]
+            direction=data["direction"],
+            location=location,
+            travel_date=parsed_date,
         )
 
-    # 5. Clear FSM state context
     await state.clear()
 
-    # 6. Send confirmation message
     confirmation_text = (
         "✅ Request Submitted Successfully\n\n"
         f"Item:\n{data['item_description']}\n\n"
-        f"Pickup Location:\n{data['pickup_location']}\n\n"
-        f"Destination:\n{data['destination_school']}\n\n"
-        f"Delivery Date:\n{data['delivery_date']}\n\n"
+        f"Direction:\n{data['direction']}\n\n"
+        f"Location:\n{data['location']}\n\n"
+        f"Delivery Date:\n{text}\n\n"
         "Status:\nPending Review"
     )
     await message.answer(confirmation_text)
 
-    # 7. Trigger automatic matching
     try:
         await MatchingService.trigger_automatic_matching()
     except Exception as e:
