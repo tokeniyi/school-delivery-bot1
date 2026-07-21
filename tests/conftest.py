@@ -12,8 +12,8 @@ if sys.platform == "win32":
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("BOT_TOKEN", "123456:TESTTOKEN")
 os.environ.setdefault("ADMIN_IDS", "123456789")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost:5432/schoolbridge")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:password@postgres:5432/schoolbridge")
+os.environ.setdefault("REDIS_URL", "redis://schoolbridge-redis:6379/0")
 
 
 class FakeBot:
@@ -33,7 +33,7 @@ async def clean_db():
     import asyncpg
     
     # Read DATABASE_URL from environment to avoid stale config module state
-    dsn = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/schoolbridge")
+    dsn = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:password@postgres:5432/schoolbridge")
     dsn = dsn.replace("postgresql+asyncpg://", "postgresql://")
     conn = await asyncpg.connect(dsn)
     try:

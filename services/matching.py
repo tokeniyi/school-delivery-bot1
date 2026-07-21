@@ -20,6 +20,7 @@ async def find_matches() -> list[tuple[int, int]]:
     - StudentRequest.status == PENDING
     - ParentTravel.status == AVAILABLE
     - ParentTravel.can_carry_packages == True
+    - StudentRequest.user_id != ParentTravel.user_id (no self-match)
     - LOWER(TRIM(pickup_location)) == LOWER(TRIM(origin_location))
     - LOWER(TRIM(destination_school)) == LOWER(TRIM(destination_school))
     - TRIM(delivery_date) == TRIM(travel_date)
@@ -43,7 +44,9 @@ async def find_matches() -> list[tuple[int, int]]:
                  func.lower(func.trim(ParentTravel.destination_school))) &
                 # Date match (exact after trim)
                 (func.trim(StudentRequest.delivery_date) ==
-                 func.trim(ParentTravel.travel_date))
+                 func.trim(ParentTravel.travel_date)) &
+                # No self-match
+                (StudentRequest.user_id != ParentTravel.user_id)
             )
             .where(
                 StudentRequest.status == RequestStatus.PENDING.value,
