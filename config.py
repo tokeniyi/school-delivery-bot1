@@ -1,7 +1,13 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load base configuration (.env) — used in production/Docker
+load_dotenv(".env")
+
+# Load local overrides (.env.local) — used during development/testing
+# override=True ensures values in .env.local take precedence
+env_local = os.path.join(os.path.dirname(__file__), ".env.local")
+load_dotenv(env_local, override=True)
 
 
 def get_env(name: str, default=None, required: bool = False):

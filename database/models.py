@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index
+from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from database.enums import RequestStatus, TravelStatus, MatchStatus, Role
@@ -94,6 +94,11 @@ class Match(Base):
         Index("ix_matches_student_request_id", "student_request_id"),
         Index("ix_matches_parent_travel_id", "parent_travel_id"),
         Index("ix_matches_created_at", "created_at"),
+        UniqueConstraint(
+            "student_request_id",
+            "parent_travel_id",
+            name="uq_matches_student_request_parent_travel",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

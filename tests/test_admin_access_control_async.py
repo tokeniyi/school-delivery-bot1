@@ -18,6 +18,6 @@ class FakeMessage:
 @pytest.mark.asyncio
 async def test_admin_access_control():
     # non-admin
-    fake_msg = FakeMessage(user_id=123456789)
+    fake_msg = FakeMessage(user_id=999999)
     await cmd_admin_matches(fake_msg)
     assert any("Access denied" in t for t in fake_msg.answered)

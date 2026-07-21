@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 pytest.skip('moved to split tests', allow_module_level=True)
 

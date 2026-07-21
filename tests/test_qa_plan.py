@@ -194,11 +194,15 @@ async def test_qa_approval_and_rejection_workflows():
     assert approved_second is None, "P-003 Failed"
 
     # R-001 & R-002: Rejection checks
+    # Use a new student/parent pair so upsert creates fresh records
     async with async_session() as session:
-        # Create a new match to test rejection
-        req2 = await upsert_student_request(session, student.telegram_id, "Pens", "Ojota", "Babcock University", travel_date)
-        # Note: upsert_parent_travel will overwrite parent's previous available travel. Since previous was matched, it creates a new available one.
-        trv2 = await upsert_parent_travel(session, parent.telegram_id, "Ojota", "Babcock University", travel_date, True)
+        student2 = await create_user(session, 80000003, "student_qa2", "QA Student 2")
+        await update_user_role(session, student2.telegram_id, "student")
+        parent2 = await create_user(session, 80000004, "parent_qa2", "QA Parent 2")
+        await update_user_role(session, parent2.telegram_id, "parent")
+        
+        req2 = await upsert_student_request(session, student2.telegram_id, "Pens", "Ojota", "Babcock University", travel_date)
+        trv2 = await upsert_parent_travel(session, parent2.telegram_id, "Ojota", "Babcock University", travel_date, True)
         match2 = await create_match(session, req2.id, trv2.id)
         
         # Reject the match

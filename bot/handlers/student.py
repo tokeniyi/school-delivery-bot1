@@ -5,12 +5,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from database.db import async_session
-from database.crud import update_user_role, create_student_request, get_match_by_id, create_match
+from database.crud import update_user_role, create_student_request
 from database.enums import Role
 from bot.states.student_states import StudentRequestStates
 from bot.keyboards.role_keyboard import STUDENT_BUTTON_TEXT
-from services.matching import find_matches
-from services.notifications import notify_admin_match
+from services.matching_service import MatchingService
 
 logger = logging.getLogger(__name__)
 
@@ -155,22 +154,7 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
 
     # 7. Trigger automatic matching
     try:
-        candidates = await find_matches()
-        if not candidates:
-            logger.info("No matching traveler found yet for this request")
-            return
-        
-        for req_id, trv_id in candidates:
-            async with async_session() as session:
-                # Create match with race condition prevention
-                new_match = await create_match(session, req_id, trv_id)
-                if new_match:
-                    # Load match with relationships for notification
-                    loaded_match = await get_match_by_id(session, new_match.id)
-                    if loaded_match:
-                        await notify_admin_match(loaded_match)
-                else:
-                    logger.warning(f"Could not persist match (duplicate): Req#{req_id} ↔ Travel#{trv_id}")
+        await MatchingService.trigger_automatic_matching()
     except Exception as e:
         logger.error(f"Error during automatic matching: {e}", exc_info=True)
         await message.answer(
