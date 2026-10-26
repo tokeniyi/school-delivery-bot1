@@ -1,6 +1,6 @@
 # Architecture Reference — SchoolRelay Bot
 
-> **Primary reference:** This document is the authoritative architectural guide for the SchoolRelay Telegram delivery-matching bot. It must be kept in sync with the implementation at all times (see [INSTRUCTIONS.md](../INSTRUCTIONS.md)).
+> **Primary reference:** This document is the authoritative architectural guide for the SchoolRelay Telegram delivery-matching bot. It must be kept in sync with the implementation at all times (see [INSTRUCTIONS.md](../.github/instructions/INSTRUCTIONS.md)).
 
 ---
 
@@ -24,7 +24,7 @@ Domain Layer         (database/enums.py, business rules)
 Infrastructure Layer (database/crud.py, database/db.py, bot/client.py)
 ```
 
-Each layer may only depend on the layer directly below it. Skipping layers is a violation of the Dependency Rules in [INSTRUCTIONS.md](../INSTRUCTIONS.md).
+Each layer may only depend on the layer directly below it. Skipping layers is a violation of the Dependency Rules in [INSTRUCTIONS.md](../.github/instructions/INSTRUCTIONS.md).
 
 ### Dependency Flow
 
@@ -398,3 +398,23 @@ $env:DATABASE_URL="sqlite+aiosqlite:///school_delivery.db"
 $env:ENVIRONMENT="development"
 .\venv\Scripts\pytest
 ```
+
+
+## Verified implementation notes (2026-10-26)
+
+The layer diagram is the intended architecture. Current start, student, parent and
+health handlers still access database or client infrastructure directly, despite
+existing service abstractions. Boundary cleanup is deferred; new code should use
+the owning services rather than copy these exceptions.
+
+Date handlers canonicalize accepted dates before persistence. Admin HTML cards
+escape dynamic values; student and parent submission receipts use plain text.
+No ownership, schema, or dependency changes were needed for these fixes.
+
+The pair uniqueness constraint prevents duplicate match rows, but does not enforce
+exclusive approval per request or travel. Upserts currently select any row for a
+user regardless of status, so they can rewrite approved records. Rejected pairs
+are discoverable but cannot be reinserted under the pair uniqueness constraint.
+See [the workflow review](runs/2026-10-26-workflow-validation.md) for reproductions
+and the required follow-up lifecycle design. These are known implementation gaps,
+not guarantees provided by the diagram or passing tests.

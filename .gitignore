@@ -231,3 +231,6 @@ logs/*.log.*
 
 # SQLite legacy database
 *.db
+
+# Local review scratch artifacts
+work/

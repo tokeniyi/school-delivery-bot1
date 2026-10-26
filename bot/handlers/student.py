@@ -121,7 +121,7 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
         return
 
     # Update date in state
-    await state.update_data(delivery_date=text)
+    await state.update_data(delivery_date=parsed_date.isoformat())
 
     # 3. Retrieve all FSM context data
     data = await state.get_data()
@@ -150,7 +150,7 @@ async def process_delivery_date(message: Message, state: FSMContext) -> None:
         f"Delivery Date:\n{data['delivery_date']}\n\n"
         "Status:\nPending Review"
     )
-    await message.answer(confirmation_text)
+    await message.answer(confirmation_text, parse_mode=None)
 
     # 7. Trigger automatic matching
     try:

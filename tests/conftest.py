@@ -2,7 +2,7 @@ import os
 import sys
 import asyncio
 import pytest
-import services.notifications as notifications
+import pytest_asyncio
 
 # Force SelectorEventLoop on Windows to avoid ProactorEventLoop issues
 # with asyncpg + SQLAlchemy greenlets
@@ -16,18 +16,23 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:password@lo
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 
+import services.notifications as notifications
+
+
 class FakeBot:
     def __init__(self, raise_on=None):
         self.sent = []
+        self.attempts = []
         self.raise_on = set(raise_on or [])
 
     async def send_message(self, chat_id, text, **kwargs):
+        self.attempts.append(chat_id)
         if chat_id in self.raise_on:
             raise RuntimeError(f"Simulated send failure for {chat_id}")
         self.sent.append({"chat_id": chat_id, "text": text, "kwargs": kwargs})
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
 async def clean_db():
     """Remove all rows before each test for isolation."""
     import asyncpg
@@ -43,6 +48,7 @@ async def clean_db():
         matches_before = await conn.fetchval("SELECT COUNT(*) FROM matches")
         print(f"\n[clean_db] BEFORE: users={users_before}, reqs={reqs_before}, travels={travels_before}, matches={matches_before}")
         
+        await conn.execute("DELETE FROM audit_logs")
         await conn.execute("DELETE FROM matches")
         await conn.execute("DELETE FROM student_requests")
         await conn.execute("DELETE FROM parent_travels")
@@ -62,10 +68,11 @@ async def clean_db():
     await engine.dispose()
     
     yield
+    await engine.dispose()
 
 
-@pytest.fixture
-def fake_bot():
+@pytest.fixture(autouse=True)
+def fake_bot(monkeypatch):
     bot = FakeBot()
-    notifications._notification_bot = bot
+    monkeypatch.setattr(notifications, "_notification_bot", bot)
     return bot

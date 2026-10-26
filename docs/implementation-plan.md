@@ -1,0 +1,38 @@
+# Workflow validation implementation plan
+
+## Scope (2026-10-26)
+
+Start from fetched `main` at `cd0b905956163620bde146cf2ffc8736a0190224`.
+Use `review/workflow-validation-2026-10-26`; target PR at `main` (the request's
+`<BASE_BRANCH>` is an unresolved template; main is the stated starting branch).
+Preserve the four-layer architecture and existing async SQLAlchemy / aiogram conventions.
+No live polling, Telegram messages, deployment, or new features.
+
+## Phases
+
+1. Confirm clean repository, read instructions, architecture, migrations and tests;
+   establish baseline using local disposable PostgreSQL and dummy bot credentials.
+2. Review handlers, services, persistence, configuration and deployment wiring.
+   Record confirmed bugs separately from test defects and environment limitations.
+3. Add regressions for HTML metacharacters in admin cards and submission receipts,
+   and accepted unpadded dates. Run against unchanged application code to prove failure.
+4. Escape each dynamic field in HTML review cards; use explicit plain text for
+   submission receipts. Canonicalize parsed dates with `date.isoformat()` before
+   saving FSM data. Keep persistence ownership and matching rules unchanged.
+5. Repair bounded test isolation issues (environment defaults before imports,
+   fake bot restoration, audit-log cleanup); verify suite and migration checks.
+6. Update guidance, progress and dated report; review diff, commit, push, open PR.
+
+## Completion criteria
+
+Baseline and skip reason recorded; regression failures reproduced before fixes;
+relevant checks pass after fixes; remaining risks have evidence and next steps;
+required documents preserve existing guidance; clean committed working tree;
+branch pushed and PR opened, or exact external blocker and recovery commands saved.
+
+## Deferred scope
+
+Match review concurrency, conflicting candidate lifecycle, edits to historical or
+pending matched records, rejected-pair rematching policy, architectural boundary
+cleanup, notification durability, and production deployment need separate focused
+plans. Do not expand this run into a lifecycle redesign.

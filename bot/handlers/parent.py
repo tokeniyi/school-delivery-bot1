@@ -100,7 +100,7 @@ async def process_travel_date(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await state.update_data(travel_date=text)
+    await state.update_data(travel_date=parsed_date.isoformat())
     await state.set_state(ParentTravelStates.can_carry_packages)
     await message.answer(
         "Are you available to carry a package for a student on this trip?",
@@ -150,7 +150,7 @@ async def process_can_carry_packages(message: Message, state: FSMContext) -> Non
         f"Available For Deliveries:\n{display_availability}\n\n"
         "Status:\nAvailable"
     )
-    await message.answer(confirmation_text)
+    await message.answer(confirmation_text, parse_mode=None)
 
     # Trigger automatic matching
     try:
