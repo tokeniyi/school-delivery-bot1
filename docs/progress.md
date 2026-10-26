@@ -31,9 +31,12 @@ README Redis guidance and architecture links/implementation caveats corrected.
 
 ## Blockers and deferred work
 
-GitHub CLI says inherited `GH_TOKEN` is invalid; no GitHub outbound identity is
-configured. Commit/push/PR publication is the remaining workflow step; actual
-attempt outcomes will be appended below. Environment sandbox isolation was
+No publication blocker remains. Application/test/documentation commit
+`0062814a2a64dc2dd1eec6e57c0e02f97f23a90e` was pushed successfully. GitHub CLI
+reported invalid `GH_TOKEN` and PR creation returned GraphQL `Forbidden`; the
+connected GitHub tool successfully created [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4)
+against `main`. PR is open and unmerged. This progress update is a subsequent
+documentation commit on the same branch. Environment sandbox isolation was
 resolved through approved execution for local DB, Docker inspection and fetch.
 
 Confirmed deferred defects: conflicting request approvals, approved-record
@@ -43,17 +46,21 @@ production deployment/performance and notification durability. See the run repor
 
 ## Exact next action
 
-Review `git diff --check` and the final diff, commit the validated changes, then:
+Review [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4) without merging.
+For a new coding task, read AGENTS.md, this document, plan and report, then:
 
 ```bash
-git push -u origin review/workflow-validation-2026-10-26
-gh pr create --repo tokeniyi/school-delivery-bot1 --base main \
-  --head review/workflow-validation-2026-10-26 \
-  --title "Fix literal message rendering and date matching; document workflow review" \
-  --body-file work/pr-body.md
+git fetch origin
+git switch review/workflow-validation-2026-10-26
+git status --short --branch
+git log -2 --oneline
 ```
 
-Do not merge. If publication is blocked, preserve commits and record exact errors.
-A new task should read AGENTS.md, this document, plan and report; verify clean
-branch/SHA; then plan L1/L2 lifecycle fixes with sequential and concurrent regression
-coverage before changing status transitions or schema.
+The working tree should be clean and HEAD should match the remote working branch.
+First implementation action: write a focused L1/L2 lifecycle plan covering request
+exclusivity, travel capacity policy, competing pending candidates, atomic admin
+review, and preserving approved history. Then add sequential conflicting-approval
+and resubmission regressions before changing code; add true concurrent transaction
+coverage. Do not merge this PR or start live polling/messages as part of that task
+without new instructions. The CLI auth problem does not prevent using the connected
+GitHub tool for authorized PR work.

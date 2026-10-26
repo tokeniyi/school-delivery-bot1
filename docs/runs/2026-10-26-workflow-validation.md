@@ -184,8 +184,17 @@ failed before approved execution succeeded. Those are environment problems.
 
 ## Publication and handoff
 
-GitHub CLI reports the inherited `GH_TOKEN` invalid; runtime configuration reports
-no outbound GitHub identity. See `docs/progress.md` for actual push/PR outcomes,
-active branch, and exact next action. No credentials were printed or changed.
-Follow-up work should first resolve L1/L2 with an explicit lifecycle plan rather
-than expand the HTML/date fix into a partial concurrency redesign.
+Code/test/guidance changes were committed as
+`0062814a2a64dc2dd1eec6e57c0e02f97f23a90e` and pushed to
+`origin/review/workflow-validation-2026-10-26`. GitHub CLI reported the inherited
+`GH_TOKEN` invalid and `gh pr create` failed with `Post
+"https://api.github.com/graphql": Forbidden`. Runtime configuration reported no
+outbound GitHub identity; that did not prevent Git transport or connector access.
+The connected GitHub tool created **[PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4)**
+against `main`, open and unmerged. No credentials were printed or changed.
+The publication outcome is recorded in a follow-up documentation commit, also
+pushed to the same branch. No publication blocker remains.
+
+See `docs/progress.md` for the active branch and exact next action. Follow-up work
+should first resolve L1/L2 with an explicit lifecycle plan rather than expand the
+HTML/date fix into a partial concurrency redesign. Review the open PR; do not merge.
