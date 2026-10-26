@@ -1,3 +1,4 @@
+from html import escape
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
@@ -89,16 +90,16 @@ async def notify_admin_match(match: Match) -> None:
         f"{notice_prefix}📋 <b>New Match Found</b>\n\n"
         f"<b>Match ID:</b> #{match.id}\n\n"
         "━━━ 🎓 Student Request ━━━\n"
-        f"<b>Student:</b> {match.student_request.user.full_name or 'N/A'}\n"
-        f"<b>Item:</b> {match.student_request.item_description}\n"
-        f"<b>Pickup:</b> {match.student_request.pickup_location}\n"
-        f"<b>School:</b> {match.student_request.destination_school}\n"
-        f"<b>Date:</b> {match.student_request.delivery_date}\n\n"
+        f"<b>Student:</b> {escape(match.student_request.user.full_name or 'N/A')}\n"
+        f"<b>Item:</b> {escape(match.student_request.item_description)}\n"
+        f"<b>Pickup:</b> {escape(match.student_request.pickup_location)}\n"
+        f"<b>School:</b> {escape(match.student_request.destination_school)}\n"
+        f"<b>Date:</b> {escape(match.student_request.delivery_date)}\n\n"
         "━━━ 👨‍👩‍👧 Parent Travel ━━━\n"
-        f"<b>Parent:</b> {match.parent_travel.user.full_name or 'N/A'}\n"
-        f"<b>Origin:</b> {match.parent_travel.origin_location}\n"
-        f"<b>School:</b> {match.parent_travel.destination_school}\n"
-        f"<b>Date:</b> {match.parent_travel.travel_date}\n\n"
+        f"<b>Parent:</b> {escape(match.parent_travel.user.full_name or 'N/A')}\n"
+        f"<b>Origin:</b> {escape(match.parent_travel.origin_location)}\n"
+        f"<b>School:</b> {escape(match.parent_travel.destination_school)}\n"
+        f"<b>Date:</b> {escape(match.parent_travel.travel_date)}\n\n"
         "Please review this match:"
     )
 

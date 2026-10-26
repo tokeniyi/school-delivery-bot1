@@ -142,10 +142,11 @@ docker compose up -d
 ```
 
 This starts:
+- `redis` — Redis 7 for FSM storage
 - `postgres` — PostgreSQL 16 with a named volume (`pgdata`) for data persistence
 - `schoolbridge-bot` — the bot container; automatically runs `alembic upgrade head` before starting
 
-Note: `docker-compose.yml` does not include a Redis service, so `REDIS_URL` in `.env` must point to an existing Redis endpoint.
+For the bot container, set `REDIS_URL=redis://redis:6379/0` in `.env` to use the Compose Redis service. Host-side development uses `redis://localhost:6379/0`.
 
 ### Stopping
 
@@ -277,3 +278,10 @@ Check logs: `docker compose logs schoolbridge-bot`. Usually a missing `.env` var
 
 ### Rate limit false positives
 The rate limiter is in-memory and resets on restart. Limit is 15 messages per 10 seconds per user. Adjust `_MAX_REQUESTS` and `_WINDOW_SECONDS` in `bot/middlewares/rate_limit_middleware.py` if needed.
+
+
+## Development validation
+
+See [AGENTS.md](AGENTS.md) for verified offline test commands, branch workflow,
+required disposable database setup, and resuming work. Review results and known
+limitations are recorded in [docs/runs/](docs/runs/).

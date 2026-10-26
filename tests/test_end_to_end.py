@@ -1,4 +1,3 @@
-import asyncio
 from typing import List
 
 from database.db import async_session
@@ -23,8 +22,8 @@ class FakeBot:
         self.sent.append({"chat_id": chat_id, "text": text, "kwargs": kwargs})
 
 
-def test_full_flow():
-    """End-to-end flow (synchronous wrapper using asyncio.run).
+async def test_full_flow():
+    """End-to-end flow on the shared pytest session event loop.
 
     Steps:
     - create tables
@@ -132,4 +131,4 @@ def test_full_flow():
             assert loaded.student_request.status == "matched", f"Request status is {loaded.student_request.status}"
             assert loaded.parent_travel.status == "matched", f"Travel status is {loaded.parent_travel.status}"
 
-    asyncio.run(run_flow())
+    await run_flow()

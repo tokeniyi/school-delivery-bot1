@@ -7,9 +7,11 @@ from config import ADMIN_IDS
 
 
 @pytest.mark.asyncio
-async def test_notifications_failure_handling(fake_bot):
+async def test_notifications_failure_handling(fake_bot, monkeypatch, caplog):
     # configure fake bot to raise for first admin
     fail_id = ADMIN_IDS[0] if len(ADMIN_IDS) > 0 else 999999
+    success_id = fail_id + 1
+    monkeypatch.setattr(notifications, "ADMIN_IDS", [fail_id, success_id])
     fake_bot.raise_on.add(fail_id)
 
     async with async_session() as session:
@@ -34,5 +36,7 @@ async def test_notifications_failure_handling(fake_bot):
     # should not raise
     await notifications.notify_admin_match(match)
 
-    # ensure function continued despite some failures (no exception means pass)
-    assert True
+    # Retry the failed recipient three times, then continue to the next admin.
+    assert fake_bot.attempts == [fail_id, fail_id, fail_id, success_id]
+    assert [msg["chat_id"] for msg in fake_bot.sent] == [success_id]
+    assert "Notification failed after 3 attempt(s)" in caplog.text

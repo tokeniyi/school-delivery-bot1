@@ -1,3 +1,4 @@
+from html import escape
 import logging
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -34,16 +35,16 @@ async def cmd_admin_matches(message: Message) -> None:
         review_text = (
             f"<b>Match #{match.id}</b>\n\n"
             "🎓 <b>Student Request</b>\n"
-            f"  Student: {match.student_request.user.full_name or 'N/A'}\n"
-            f"  Item: {match.student_request.item_description}\n"
-            f"  Pickup: {match.student_request.pickup_location}\n"
-            f"  School: {match.student_request.destination_school}\n"
-            f"  Date: {match.student_request.delivery_date}\n\n"
+            f"  Student: {escape(match.student_request.user.full_name or 'N/A')}\n"
+            f"  Item: {escape(match.student_request.item_description)}\n"
+            f"  Pickup: {escape(match.student_request.pickup_location)}\n"
+            f"  School: {escape(match.student_request.destination_school)}\n"
+            f"  Date: {escape(match.student_request.delivery_date)}\n\n"
             "👨‍👩‍👧 <b>Parent Travel</b>\n"
-            f"  Parent: {match.parent_travel.user.full_name or 'N/A'}\n"
-            f"  Origin: {match.parent_travel.origin_location}\n"
-            f"  School: {match.parent_travel.destination_school}\n"
-            f"  Date: {match.parent_travel.travel_date}\n"
+            f"  Parent: {escape(match.parent_travel.user.full_name or 'N/A')}\n"
+            f"  Origin: {escape(match.parent_travel.origin_location)}\n"
+            f"  School: {escape(match.parent_travel.destination_school)}\n"
+            f"  Date: {escape(match.parent_travel.travel_date)}\n"
         )
         await message.answer(
             text=review_text,
