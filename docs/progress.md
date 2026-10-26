@@ -1,3 +1,38 @@
+# Current handoff — continuity and lifecycle planning, 2026-10-26
+
+- Current branch: `plan/lifecycle-continuity-2026-10-26`.
+- Verified base: `origin/review/workflow-validation-2026-10-26` at
+  `07876104813e405e284eb51d38d43df395cf8fe2`, matching open/unmerged
+  [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4), targeting main.
+- Scope: continuity validation and documentation planning only; no application,
+  schema or test edits. Original checkout `work` at `cd0b905` preserved clean;
+  validation/planning performed in a separate worktree.
+- [Focused lifecycle plan](lifecycle-implementation-plan-2026-10-26.md) completes
+  the previous handoff's planning action. It separates established L1/L2 invariants
+  from unresolved capacity, competitor, active-row/edit and reconsideration policies.
+- [Current run report](runs/2026-10-26-continuity-lifecycle-planning.md) records
+  fetched state, baseline reproduction, inconsistencies and publication outcome.
+- Revalidated: **44 passed, 1 skipped in 10.52s**; fresh migration round trip/check,
+  dependency compatibility, compilation and whitespace checks passed. Redis PING
+  passed. L1, L2 (both upserts) and L3 reproduced with synthetic CRUD-only data.
+  Disposable PostgreSQL/Redis containers removed after validation.
+- No production data, live Telegram calls/messages, polling, deployment or merge.
+  True concurrency and production behavior remain unverified.
+
+## Exact next action
+
+Review the planning PR and PR #4 without merging. Obtain product decisions in the
+focused plan, beginning with travel capacity, competing pending candidates and
+resubmission/edit behavior. Only in a new implementation task, fetch/reverify the
+agreed base, add failing sequential conflicting-approval and approved-history
+resubmission regressions, then true concurrent PostgreSQL transaction coverage.
+Do not implement policy-dependent lifecycle changes before decisions are recorded.
+
+## Previous run record (retained)
+
+The following is the historical PR #4 handoff. Its branch, validation timings and
+“exact next action” describe that run; the current handoff above supersedes them.
+
 # Progress — 2026-10-26
 
 ## Active work
