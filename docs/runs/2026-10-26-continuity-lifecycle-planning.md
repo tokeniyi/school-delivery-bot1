@@ -167,4 +167,15 @@ refresh/reverify the agreed remote base, write failing sequential conflicting-
 approval and approved-history resubmission regressions before application changes,
 then add truly overlapping PostgreSQL transaction coverage.
 
-Publication outcome is recorded below after branch push and PR creation.
+## Publication outcome
+
+Committed the four documentation files as
+`8a58b9250989544116a9ea361d1c9ecfd8ee534a` and pushed
+`plan/lifecycle-continuity-2026-10-26`. Remote inspection confirmed the planning
+commit and unchanged PR #4 head. The connected GitHub tool opened
+[PR #5](https://github.com/tokeniyi/school-delivery-bot1/pull/5), targeting
+`review/workflow-validation-2026-10-26`, with the PR #4 dependency explicit.
+This subsequent documentation commit records the publication link. Local Markdown
+links and staged whitespace checks passed; the diff contains only the plan,
+progress, historical-plan follow-up link and this report. PR #4 and PR #5 remain
+open and unmerged. No CLI authentication changes were needed.
