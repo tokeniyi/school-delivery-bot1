@@ -1,6 +1,8 @@
 # Current handoff — continuity and lifecycle planning, 2026-10-26
 
 - Current branch: `plan/lifecycle-continuity-2026-10-26`.
+- Planning PR: [#5](https://github.com/tokeniyi/school-delivery-bot1/pull/5),
+  documentation-only, targeting PR #4's branch; open and unmerged.
 - Verified base: `origin/review/workflow-validation-2026-10-26` at
   `07876104813e405e284eb51d38d43df395cf8fe2`, matching open/unmerged
   [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4), targeting main.
