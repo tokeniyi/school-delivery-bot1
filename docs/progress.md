@@ -1,3 +1,79 @@
+# Current handoff — planning documentation integration, 2026-10-27
+
+- Branch: `docs/integrate-lifecycle-plan-2026-10-27`; PR target: `main`.
+- Integration PR: [#6](https://github.com/tokeniyi/school-delivery-bot1/pull/6),
+  open and unmerged.
+- Fetched main: `6772ea12ee7e01bd8666590f6e67d59087450ef9`.
+- Fetched review branch: `00e410a3939fd6e133928a7e8a1f71249427e9db`.
+- [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4) merged into
+  main on October 26 at 20:40:53 Africa/Lagos. [PR #5](https://github.com/tokeniyi/school-delivery-bot1/pull/5)
+  merged into `review/workflow-validation-2026-10-26` on October 27 at 06:28:29.
+  Its later merge did not propagate to main. This integration brings its
+  documentation to a new main-targeting PR; this integration PR must not be merged
+  by the agent.
+- Imported PR #5's two documentation commits with provenance; no cherry-pick
+  conflicts. Preserved main as the ancestor and left other worktrees untouched.
+- [Focused lifecycle plan](lifecycle-implementation-plan-2026-10-26.md) and
+  [continuity report](runs/2026-10-26-continuity-lifecycle-planning.md) are included.
+  Product decisions remain unresolved; integration does not approve recommendations
+  or authorize application changes.
+- [Integration report](runs/2026-10-27-planning-docs-main-integration.md) records
+  source commits, validation, status inconsistencies and publication.
+- This run validates documentation scope, source preservation, local links and
+  whitespace. The 44-pass/1-skipped results below belong to the prior run;
+  application tests/services were not rerun for this documentation-only change.
+
+## Exact next action
+
+Review the integration PR against main without merging it as part of this task.
+Resolve the lifecycle plan's product decisions before dependent implementation.
+In a separately authorized implementation task, fetch/reverify the agreed base,
+write failing sequential conflicting-approval and approved-history resubmission
+regressions, then true concurrent PostgreSQL transaction tests before fixes.
+
+## Historical handoffs
+
+The records below retain earlier validation evidence and instructions. Their old
+branch names and next actions describe those runs; the current handoff above and
+the dated merge-status notes supersede their publication status and next actions.
+
+# Previous handoff — continuity and lifecycle planning, 2026-10-26
+
+- Current branch: `plan/lifecycle-continuity-2026-10-26`.
+- Planning PR: [#5](https://github.com/tokeniyi/school-delivery-bot1/pull/5),
+  documentation-only, targeting PR #4's branch; merged on 2026-10-27.
+- Verified base: `origin/review/workflow-validation-2026-10-26` at
+  `07876104813e405e284eb51d38d43df395cf8fe2`, matching the historical head of
+  [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4), targeting main.
+- Scope: continuity validation and documentation planning only; no application,
+  schema or test edits. Original checkout `work` at `cd0b905` preserved clean;
+  validation/planning performed in a separate worktree.
+- [Focused lifecycle plan](lifecycle-implementation-plan-2026-10-26.md) completes
+  the previous handoff's planning action. It separates established L1/L2 invariants
+  from unresolved capacity, competitor, active-row/edit and reconsideration policies.
+- [Current run report](runs/2026-10-26-continuity-lifecycle-planning.md) records
+  fetched state, baseline reproduction, inconsistencies and publication outcome.
+- Revalidated: **44 passed, 1 skipped in 10.52s**; fresh migration round trip/check,
+  dependency compatibility, compilation and whitespace checks passed. Redis PING
+  passed. L1, L2 (both upserts) and L3 reproduced with synthetic CRUD-only data.
+  Disposable PostgreSQL/Redis containers removed after validation.
+- No production data, live Telegram calls/messages, polling, deployment or merge.
+  True concurrency and production behavior remain unverified.
+
+## Exact next action
+
+Review the planning PR and PR #4 without merging. Obtain product decisions in the
+focused plan, beginning with travel capacity, competing pending candidates and
+resubmission/edit behavior. Only in a new implementation task, fetch/reverify the
+agreed base, add failing sequential conflicting-approval and approved-history
+resubmission regressions, then true concurrent PostgreSQL transaction coverage.
+Do not implement policy-dependent lifecycle changes before decisions are recorded.
+
+## Previous run record (retained)
+
+The following is the historical PR #4 handoff. Its branch, validation timings and
+“exact next action” describe that run; the current handoff above supersedes them.
+
 # Progress — 2026-10-26
 
 ## Active work
@@ -35,7 +111,7 @@ No publication blocker remains. Application/test/documentation commit
 `0062814a2a64dc2dd1eec6e57c0e02f97f23a90e` was pushed successfully. GitHub CLI
 reported invalid `GH_TOKEN` and PR creation returned GraphQL `Forbidden`; the
 connected GitHub tool successfully created [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4)
-against `main`. PR is open and unmerged. This progress update is a subsequent
+against `main`. PR #4 subsequently merged on 2026-10-26. This progress update was a subsequent
 documentation commit on the same branch. Environment sandbox isolation was
 resolved through approved execution for local DB, Docker inspection and fetch.
 
