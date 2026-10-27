@@ -43,7 +43,8 @@ Phases 1–6 complete. Baseline 38 passed/1 skipped; six regressions failed befo
 the fixes; final 44 passed/1 skipped. Migration round trip, metadata, dependency,
 compilation and whitespace checks passed. Changes committed and pushed;
 [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4) targets main and
-is open/unmerged. CLI auth failure was resolved for publication by using the
+was open at publication and merged on 2026-10-26. CLI auth failure was resolved
+for publication by using the
 connected GitHub tool. Remaining lifecycle defects and review gaps are documented.
 
 ## Continuity follow-up (2026-10-26)
@@ -55,3 +56,13 @@ The handoff's next planning action is now recorded in the separate
 See the [distinct continuity report](runs/2026-10-26-continuity-lifecycle-planning.md)
 for current branch, validation and unresolved decisions. That plan is not approval
 to implement product policies or merge either PR.
+
+## Main integration follow-up (2026-10-27)
+
+PR #4 merged into main at `6772ea1`. PR #5 later merged into the review branch
+at `00e410a`, so its planning documents were absent from main. A new branch from
+fetched main imports only PR #5's documentation changes and corrects publication
+status, preserving the original plans and unresolved product decisions. See the
+[current progress record](progress.md) and
+[integration report](runs/2026-10-27-planning-docs-main-integration.md).
+No lifecycle implementation, service validation rerun or merge is part of this task.

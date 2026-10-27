@@ -2,11 +2,16 @@
 
 ## Status and dependency
 
-Planning only; no application, schema or test changes are authorized in this run.
-Base: PR #4, `review/workflow-validation-2026-10-26`, verified remote head
-`07876104813e405e284eb51d38d43df395cf8fe2`. This document depends on that
-unmerged PR's rendering/date fixes and test repairs. The planning PR targets its
-branch, not main. Neither PR is to be merged by this task.
+Planning only; no application, schema or test changes are authorized by this plan.
+Original base: PR #4 head `07876104813e405e284eb51d38d43df395cf8fe2`.
+PR #4 merged into main on 2026-10-26; PR #5 subsequently merged this plan into
+`review/workflow-validation-2026-10-26` on 2026-10-27, not into main.
+This document is now being integrated through a separate PR from
+`docs/integrate-lifecycle-plan-2026-10-27` to main, based on
+`6772ea12ee7e01bd8666590f6e67d59087450ef9`. See the
+[integration report](runs/2026-10-27-planning-docs-main-integration.md).
+Do not merge the integration PR or implement lifecycle fixes as part of this task.
+The requirements and unresolved decisions below are unchanged by integration.
 
 Read [progress](progress.md), [original review](runs/2026-10-26-workflow-validation.md)
 and [continuity validation](runs/2026-10-26-continuity-lifecycle-planning.md).
@@ -135,7 +140,8 @@ A passing baseline does not prove these properties.
 
 ## Exact next action
 
-Review this documentation PR and PR #4 without merging. Obtain the product answers
+Review the main-targeting documentation integration PR without merging it. PRs #4
+and #5 are already merged into their respective bases. Obtain the product answers
 in the decision table, starting with travel capacity, competing-candidate disposition
 and resubmission/edit policy. In a newly authorized implementation task, refresh the
 remote heads and write the sequential conflicting-approval and approved-history

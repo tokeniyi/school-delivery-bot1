@@ -1,5 +1,13 @@
 # Continuity validation and lifecycle planning — 2026-10-26
 
+> Status correction — 2026-10-27: this is a historical validation report.
+> GitHub now confirms PR #4 merged into main at `6772ea1` on October 26,
+> 20:40:53 Africa/Lagos, and PR #5 merged into the review branch at `00e410a`
+> on October 27, 06:28:29. The publication section's “open and unmerged” wording
+> is superseded; PR #4 had already merged by PR #5's creation. PR #5's later merge
+> did not update main. See the [integration report](2026-10-27-planning-docs-main-integration.md)
+> for the separate main-targeting PR. Earlier test evidence is retained unchanged.
+
 ## Scope and verified provenance
 
 Repository: `tokeniyi/school-delivery-bot1`. This is a distinct follow-up to
