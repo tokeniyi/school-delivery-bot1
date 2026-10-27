@@ -1,6 +1,8 @@
 # Current handoff — planning documentation integration, 2026-10-27
 
 - Branch: `docs/integrate-lifecycle-plan-2026-10-27`; PR target: `main`.
+- Integration PR: [#6](https://github.com/tokeniyi/school-delivery-bot1/pull/6),
+  open and unmerged.
 - Fetched main: `6772ea12ee7e01bd8666590f6e67d59087450ef9`.
 - Fetched review branch: `00e410a3939fd6e133928a7e8a1f71249427e9db`.
 - [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4) merged into
