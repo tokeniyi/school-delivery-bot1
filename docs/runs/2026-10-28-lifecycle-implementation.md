@@ -154,8 +154,12 @@ with database indexes providing allocation defense in depth.
 
 ## Publication and exact next action
 
-Push completed work and open a main-targeting implementation PR, leaving it
-unmerged. Publication link is recorded after creation. Next action: review the
+Completed work pushed to `origin/fix/lifecycle-2026-10-28`. Main was fetched again
+before push and remained `f368a5b`. The connected GitHub tool opened
+[PR #7](https://github.com/tokeniyi/school-delivery-bot1/pull/7) targeting main,
+open and unmerged. Initial published head: `ab6d87579f2c6325011e821b096785d927305df6`
+(validation/handoff commit). This final documentation commit records publication.
+P0–P5 are complete; no additional application changes followed final validation. Next action: review the
 implementation PR and its migration/locking design. Production rollout and any
 legacy-data reconciliation require separate authorization; do not deploy or merge
 as part of this task. A fresh task should fetch origin, verify the branch/head and

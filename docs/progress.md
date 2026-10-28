@@ -1,12 +1,14 @@
 # Current handoff — lifecycle implementation, 2026-10-28
 
 - Active branch: `fix/lifecycle-2026-10-28`; target: `main`.
+- Implementation PR: [#7](https://github.com/tokeniyi/school-delivery-bot1/pull/7),
+  open and unmerged.
 - Verified base: `f368a5be55d2e3815c6cd8be5f195d1bd14f981f`, merged PR #6;
   lifecycle planning/continuity documents confirmed present on main.
 - Relevant commits: `a6bc22b` (four failing pre-fix regressions), `c586c21`
   (atomic lifecycle implementation, schema and passing tests). Subsequent commits
   record final validation and publication.
-- P0–P4 complete; P5 checks complete, PR publication being finalized.
+- P0–P5 complete; implementation and handoff committed/pushed; PR #7 open.
 - Confirmed policies and transitions: [lifecycle contract](lifecycle-decisions-2026-10-28.md).
   User also confirmed pending edits: allow edits, close candidates, require fresh
   review. No unanswered normal-path product decision remains.
