@@ -48,7 +48,7 @@ async def cmd_admin_matches(message: Message) -> None:
         )
         await message.answer(
             text=review_text,
-            reply_markup=get_admin_keyboard(match.id),
+            reply_markup=get_admin_keyboard(match.id, getattr(match, "review_revision", 1)),
             parse_mode="HTML"
         )
 
@@ -97,10 +97,18 @@ async def callback_approve_match(callback: CallbackQuery) -> None:
         await callback.answer("⛔ Access denied.", show_alert=True)
         return
 
-    match_id = int(callback.data.replace("approve_match_", ""))
+    try:
+        parts = callback.data.removeprefix("approve_match_").split("_")
+        if len(parts) not in (1, 2):
+            raise ValueError
+        match_id = int(parts[0])
+        revision = int(parts[1]) if len(parts) == 2 else 1
+    except (ValueError, TypeError):
+        await callback.answer("Invalid match action.", show_alert=True)
+        return
     admin_id = callback.from_user.id
 
-    match = await MatchingService.approve_match(match_id, admin_id=admin_id)
+    match = await MatchingService.approve_match(match_id, admin_id=admin_id, expected_revision=revision)
 
     if not match:
         await callback.answer("⚠️ This match has already been processed or does not exist.", show_alert=True)
@@ -123,10 +131,18 @@ async def callback_reject_match(callback: CallbackQuery) -> None:
         await callback.answer("⛔ Access denied.", show_alert=True)
         return
 
-    match_id = int(callback.data.replace("reject_match_", ""))
+    try:
+        parts = callback.data.removeprefix("reject_match_").split("_")
+        if len(parts) not in (1, 2):
+            raise ValueError
+        match_id = int(parts[0])
+        revision = int(parts[1]) if len(parts) == 2 else 1
+    except (ValueError, TypeError):
+        await callback.answer("Invalid match action.", show_alert=True)
+        return
     admin_id = callback.from_user.id
 
-    match = await MatchingService.reject_match(match_id, admin_id=admin_id)
+    match = await MatchingService.reject_match(match_id, admin_id=admin_id, expected_revision=revision)
 
     if not match:
         await callback.answer("⚠️ This match has already been processed or does not exist.", show_alert=True)
@@ -139,3 +155,20 @@ async def callback_reject_match(callback: CallbackQuery) -> None:
     await callback.answer("Match rejected.")
 
     logger.info(f"Match#{match_id} rejected by admin {admin_id}")
+
+
+@router.message(Command("reconsider_match"))
+async def cmd_reconsider_match(message: Message) -> None:
+    """Explicit admin-only reconsideration; no automatic reopening by discovery."""
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("⛔ Access denied.")
+        return
+    parts = (message.text or "").split()
+    if len(parts) != 2 or not parts[1].isdigit() or int(parts[1]) < 1:
+        await message.answer("Usage: /reconsider_match MATCH_ID", parse_mode=None)
+        return
+    match = await MatchingService.reconsider_match(int(parts[1]), message.from_user.id)
+    if not match:
+        await message.answer("Match cannot be reconsidered: it must be rejected and both records must remain eligible.", parse_mode=None)
+        return
+    await message.answer(f"Match #{match.id} reopened for admin review. Previous reviews are preserved.", parse_mode=None)

@@ -7,6 +7,7 @@ class RequestStatus(str, enum.Enum):
     MATCHED = "matched"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    SUPERSEDED = "superseded"
 
 
 class TravelStatus(str, enum.Enum):
@@ -16,6 +17,7 @@ class TravelStatus(str, enum.Enum):
     MATCHED = "matched"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    SUPERSEDED = "superseded"
 
 
 class MatchStatus(str, enum.Enum):
@@ -23,6 +25,7 @@ class MatchStatus(str, enum.Enum):
     PENDING_REVIEW = "pending_review"
     APPROVED = "approved"
     REJECTED = "rejected"
+    CLOSED = "closed"
 
 
 class Role(str, enum.Enum):

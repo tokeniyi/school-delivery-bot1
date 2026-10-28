@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index, UniqueConstraint
+from sqlalchemy import BigInteger, String, ForeignKey, Boolean, DateTime, Integer, Index, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from database.enums import RequestStatus, TravelStatus, MatchStatus, Role
@@ -91,6 +91,10 @@ class Match(Base):
     __tablename__ = "matches"
     __table_args__ = (
         Index("ix_matches_status", "status"),
+        Index("uq_matches_approved_request", "student_request_id", unique=True,
+              postgresql_where=text("status = 'approved'")),
+        Index("uq_matches_approved_travel", "parent_travel_id", unique=True,
+              postgresql_where=text("status = 'approved'")),
         Index("ix_matches_student_request_id", "student_request_id"),
         Index("ix_matches_parent_travel_id", "parent_travel_id"),
         Index("ix_matches_created_at", "created_at"),
@@ -116,6 +120,9 @@ class Match(Base):
         DateTime(timezone=True),
         nullable=True
     )
+
+    review_revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    closure_reason: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Relationships
     student_request: Mapped["StudentRequest"] = relationship(lazy="selectin")
@@ -150,3 +157,17 @@ class AuditLog(Base):
             f"<AuditLog id={self.id} admin_id={self.admin_id} "
             f"action={self.action} entity_type={self.entity_type} entity_id={self.entity_id}>"
         )
+
+
+class MatchEvent(Base):
+    """Append-only lifecycle evidence, including every review and explicit reopen."""
+    __tablename__ = "match_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), index=True, nullable=False)
+    from_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    to_status: Mapped[str] = mapped_column(String, nullable=False)
+    actor_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )

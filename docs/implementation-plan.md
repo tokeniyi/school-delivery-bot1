@@ -84,9 +84,11 @@ previous tasks; this section governs the new implementation.
 4. Rejected pairs return to review only through an explicit action authorized by
    the existing configured-admin convention, preserving prior reviews/rejection.
 
-Pending policy: whether edits to a source with pending candidates are blocked or
-invalidate those candidates; question submitted to user. Do not choose either
-silently. Ambiguous multiple editable legacy rows must not be selected arbitrarily;
+5. User confirmed pending-review edits are allowed: close affected candidates and
+   require fresh review. Preserve reviewed details by superseding the source version
+   and creating a replacement row; ordinary matching uses the replacement only.
+
+No blocking pending-edit decision remains. Ambiguous multiple editable legacy rows must not be selected arbitrarily;
 fail clearly rather than introduce an active-row policy or reconcile legacy data.
 Unavailable-trip editing remains outside the documented available-trip upsert rule.
 Existing production conflicts must block migration, not be automatically repaired.
@@ -115,5 +117,6 @@ Existing production conflicts must block migration, not be automatically repaire
   No merge, deployment, polling or live Telegram messages.
 
 Status: P0 passed (44 passed/1 skipped, 12.14s); P1 passed (four expected
-regression failures, 0.57s, unchanged application). P2 in progress. Each phase's result and relevant commits are recorded in
+regression failures, 0.57s, unchanged application). P2 passed (6 tests); P3 passed (10 tests); P4 passed (20 lifecycle tests
+including pending-edit/approval contention and 4 migration tests). P5 in progress. Each phase's result and relevant commits are recorded in
 progress and the lifecycle implementation run report before advancing.

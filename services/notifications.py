@@ -4,7 +4,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from config import ADMIN_IDS
 from bot.keyboards.admin_keyboard import get_admin_keyboard
-from database.models import Match
+from database.models import Match, MatchEvent
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +66,18 @@ async def notify_admin_match(match: Match) -> None:
     Checks if this student request had a previously rejected match and prepends a notice.
     """
     from database.db import async_session
-    from sqlalchemy import select
+    from sqlalchemy import select, or_
     from database.enums import MatchStatus
 
     has_rejected_match = False
     async with async_session() as session:
         stmt = select(Match).where(
             Match.student_request_id == match.student_request_id,
-            Match.status == MatchStatus.REJECTED.value
+            or_(Match.status == MatchStatus.REJECTED.value,
+                select(MatchEvent.id).where(
+                    MatchEvent.match_id == Match.id,
+                    MatchEvent.to_status == MatchStatus.REJECTED.value,
+                ).exists())
         )
         result = await session.execute(stmt)
         if result.scalars().first() is not None:
@@ -82,7 +86,7 @@ async def notify_admin_match(match: Match) -> None:
     notice_prefix = ""
     if has_rejected_match:
         notice_prefix = (
-            "⚠️ <b>Notice:</b> A new travel request matches the same student request "
+            "⚠️ <b>Notice:</b> This candidate concerns a student request "
             "that was previously rejected.\n\n"
         )
 
@@ -108,7 +112,7 @@ async def notify_admin_match(match: Match) -> None:
             chat_id=admin_id,
             text=review_text,
             message_type="admin_match_review",
-            reply_markup=get_admin_keyboard(match.id),
+            reply_markup=get_admin_keyboard(match.id, getattr(match, "review_revision", 1)),
         )
 
 

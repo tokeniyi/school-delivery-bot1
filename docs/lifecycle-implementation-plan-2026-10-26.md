@@ -1,6 +1,14 @@
 # Focused L1/L2 lifecycle implementation plan — 2026-10-26
 
-## Status and dependency
+## Current status — 2026-10-28
+
+PR #6 is merged into main at `f368a5b`. The user authorized implementation and
+confirmed the decisions in [the lifecycle contract](lifecycle-decisions-2026-10-28.md),
+including allowing edits with candidate closure and fresh review. The historical
+unresolved table below is preserved as planning evidence; the current contract,
+[active phased plan](implementation-plan.md) and [progress](progress.md) supersede it.
+
+## Historical status and dependency
 
 Planning only; no application, schema or test changes are authorized by this plan.
 Original base: PR #4 head `07876104813e405e284eb51d38d43df395cf8fe2`.

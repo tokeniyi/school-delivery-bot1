@@ -27,7 +27,7 @@ class ParentTravelService:
         can_carry_packages: bool,
     ) -> ParentTravel:
         """
-        Persist a new (or update an existing available) parent travel record.
+        Persist a submission, preserving approved history and versioning reviewed edits.
 
         Called by the parent FSM handler after all fields are collected and
         validated at the Interface Layer.

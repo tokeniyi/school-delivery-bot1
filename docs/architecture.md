@@ -136,7 +136,7 @@ notifications.notify_parent_approved()  →  Telegram API
 - **`trigger_automatic_matching()`** — Run `find_matches()`, persist new Match rows, notify admins.
 - **`get_pending_matches()`** — Return all pending-review matches with eager-loaded relationships.
 - **`approve_match(match_id, admin_id)`** — Approve match, update statuses, send notifications.
-- **`reject_match(match_id, admin_id)`** — Reject match, reset statuses, send notifications.
+- **`reject_match(match_id, admin_id)`** — Record rejection without resource resets, send notifications.
 - **Dependencies:** `services.matching`, `database.crud`, `services.notifications`
 
 #### `HealthCheckService`
@@ -154,10 +154,12 @@ Business rules encoded as enumerations:
 |------|--------|---------|
 | `RequestStatus` | `PENDING`, `MATCHED` | Lifecycle of a student request |
 | `TravelStatus` | `AVAILABLE`, `MATCHED`, `UNAVAILABLE` | Lifecycle of a parent travel |
-| `MatchStatus` | `PENDING_REVIEW`, `APPROVED`, `REJECTED` | Admin review state of a match |
+| `MatchStatus` | `PENDING_REVIEW`, `APPROVED`, `REJECTED`, `CLOSED` | Admin review state of a match |
 
 Business rule: A match may only be approved or rejected when its status is `PENDING_REVIEW`.  
-Business rule: Rejecting a match resets the request to `PENDING` and the travel to `AVAILABLE`, enabling re-matching.
+Business rule: Rejecting a match records a review without resetting resource state;
+ordinary discovery may find alternative partners, but this rejected pair needs
+explicit authorized reconsideration. See the current lifecycle contract below.
 
 ---
 
@@ -166,7 +168,7 @@ Business rule: Rejecting a match resets the request to `PENDING` and the travel 
 | File | Purpose |
 |------|---------|
 | `db.py` | SQLAlchemy async engine + session factory |
-| `models.py` | ORM models: `User`, `StudentRequest`, `ParentTravel`, `Match`, `AuditLog` |
+| `models.py` | ORM models: `User`, `StudentRequest`, `ParentTravel`, `Match`, `MatchEvent`, `AuditLog` |
 | `crud.py` | All database read/write operations |
 
 **Cascade rules:** Deleting a `User` cascades to their `StudentRequest` and `ParentTravel` rows.  
@@ -400,7 +402,9 @@ $env:ENVIRONMENT="development"
 ```
 
 
-## Verified implementation notes (2026-10-26)
+## Historical implementation notes (2026-10-26)
+
+The lifecycle gaps in this dated section are superseded by the 2026-10-28 notes below.
 
 The layer diagram is the intended architecture. Current start, student, parent and
 health handlers still access database or client infrastructure directly, despite
@@ -418,3 +422,35 @@ are discoverable but cannot be reinserted under the pair uniqueness constraint.
 See [the workflow review](runs/2026-10-26-workflow-validation.md) for reproductions
 and the required follow-up lifecycle design. These are known implementation gaps,
 not guarantees provided by the diagram or passing tests.
+
+
+## Lifecycle architecture update — 2026-10-28
+
+The [confirmed lifecycle contract](lifecycle-decisions-2026-10-28.md) governs
+allocation, resubmission, pending edits and explicit reconsideration. Existing
+services remain the owners; no parallel orchestration layer was introduced.
+
+- CRUD serializes lifecycle writers using participating User rows in ascending ID
+  order, then candidate rows in ascending ID order. Eligibility is reloaded after
+  locking. Review/resource changes, closure reasons, MatchEvent and AuditLog writes
+  commit together. Rejection does not reset resource statuses.
+- Partial unique approved-request and approved-trip indexes enforce one-to-one
+  allocation. Candidate pair uniqueness is retained.
+- MatchEvent is append-only through application APIs and preserves every review,
+  automatic closure and explicit reconsideration. Match.status represents current
+  state, not the entire review history. `closed` and `closure_reason` distinguish
+  automatic invalidation from `rejected`.
+- Edits to sources with candidate history preserve the old row as `superseded`,
+  close pending candidates and insert a replacement. Approved sources are never
+  edited by upsert; new submissions create new rows. Unreviewed drafts retain the
+  documented update behavior. Ambiguous legacy draft selection raises an error.
+- Configured-admin `/reconsider_match ID` calls MatchingService then CRUD. Reopening
+  appends history and advances `review_revision`; old inline actions cannot review
+  later rounds. Notification happens after commit with existing retry limitations.
+- Migration a28c10 refuses conflicting existing approvals. It seeds only known
+  legacy state and retains audits, without automated production reconciliation.
+  Downgrade refuses to erase new lifecycle events; see migration tests/contract.
+
+The old SQLite test example is not the validated test path: use AGENTS.md's
+PostgreSQL recipe with disposable services. Migration tests create additional
+scratch databases on that local instance and require database-creation privileges.

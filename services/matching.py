@@ -23,7 +23,7 @@ async def find_matches() -> list[tuple[int, int]]:
     - LOWER(TRIM(pickup_location)) == LOWER(TRIM(origin_location))
     - LOWER(TRIM(destination_school)) == LOWER(TRIM(destination_school))
     - TRIM(delivery_date) == TRIM(travel_date)
-    - No existing Match with status IN (pending_review, approved) for this pair
+    - No existing Match of any status for this pair; rejected pairs require explicit reconsideration
 
     Returns:
         List of (student_request_id, parent_travel_id) tuples ready to be persisted.
@@ -55,10 +55,6 @@ async def find_matches() -> list[tuple[int, int]]:
                 .where(
                     Match.student_request_id == StudentRequest.id,
                     Match.parent_travel_id == ParentTravel.id,
-                    Match.status.in_([
-                        MatchStatus.PENDING_REVIEW.value,
-                        MatchStatus.APPROVED.value,
-                    ])
                 )
                 .correlate(StudentRequest, ParentTravel)
                 .exists()

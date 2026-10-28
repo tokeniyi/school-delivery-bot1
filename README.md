@@ -247,6 +247,7 @@ Application:  ✅ Running
 |-------------------|------------------------------------------|
 | `/health`         | Check DB and Telegram API connectivity   |
 | `/admin_matches`  | List all pending matches for review      |
+| `/reconsider_match ID` | Explicitly reopen an eligible rejected pair for admin review |
 
 ---
 
@@ -285,3 +286,14 @@ The rate limiter is in-memory and resets on restart. Limit is 15 messages per 10
 See [AGENTS.md](AGENTS.md) for verified offline test commands, branch workflow,
 required disposable database setup, and resuming work. Review results and known
 limitations are recorded in [docs/runs/](docs/runs/).
+
+
+### Delivery lifecycle
+
+A parent trip carries one student request. Approval automatically closes incompatible
+pending candidates with a recorded reason; this is distinct from admin rejection.
+Submissions after approval preserve the old delivery and create a new record.
+Editing details awaiting review closes old candidates and requires fresh matching
+and review. Rejected pairs are never reopened by automatic matching; configured
+admins may explicitly use `/reconsider_match ID`, retaining earlier review history.
+See the [confirmed lifecycle contract](docs/lifecycle-decisions-2026-10-28.md).

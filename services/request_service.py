@@ -27,7 +27,7 @@ class StudentRequestService:
         delivery_date: str,
     ) -> StudentRequest:
         """
-        Persist a new (or update an existing pending) student delivery request.
+        Persist a submission, preserving approved history and versioning reviewed edits.
 
         Called by the student FSM handler after all fields are collected and
         validated at the Interface Layer.
