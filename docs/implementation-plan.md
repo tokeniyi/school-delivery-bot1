@@ -118,5 +118,6 @@ Existing production conflicts must block migration, not be automatically repaire
 
 Status: P0 passed (44 passed/1 skipped, 12.14s); P1 passed (four expected
 regression failures, 0.57s, unchanged application). P2 passed (6 tests); P3 passed (10 tests); P4 passed (20 lifecycle tests
-including pending-edit/approval contention and 4 migration tests). P5 in progress. Each phase's result and relevant commits are recorded in
+including pending-edit/approval contention and 4 migration tests). P5 validation passed (70 passed/1 skipped, 24.60s; metadata, dependencies,
+compilation, links and whitespace). PR publication in progress. Each phase's result and relevant commits are recorded in
 progress and the lifecycle implementation run report before advancing.
