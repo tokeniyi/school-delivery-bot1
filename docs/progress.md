@@ -1,8 +1,50 @@
-# Current handoff — planning documentation integration, 2026-10-27
+# Current handoff — lifecycle implementation, 2026-10-28
+
+- Active branch: `fix/lifecycle-2026-10-28`; target: `main`.
+- Implementation PR: [#7](https://github.com/tokeniyi/school-delivery-bot1/pull/7),
+  open and unmerged.
+- Verified base: `f368a5be55d2e3815c6cd8be5f195d1bd14f981f`, merged PR #6;
+  lifecycle planning/continuity documents confirmed present on main.
+- Relevant commits: `a6bc22b` (four failing pre-fix regressions), `c586c21`
+  (atomic lifecycle implementation, schema and passing tests). Subsequent commits
+  record final validation and publication.
+- P0–P5 complete; implementation and handoff committed/pushed; PR #7 open.
+- Confirmed policies and transitions: [lifecycle contract](lifecycle-decisions-2026-10-28.md).
+  User also confirmed pending edits: allow edits, close candidates, require fresh
+  review. No unanswered normal-path product decision remains.
+- Implemented exclusive request/trip approval, reasoned automatic candidate closure,
+  preserved approved delivery fields, source versioning on reviewed edits, and
+  explicit configured-admin reconsideration with append-only review history and
+  stale-button protection.
+- Final suite: **70 passed, 1 skipped**, 24.60s. Baseline **44 passed/1 skipped**;
+  four regression failures before fixes. Migration head/check **a28c10**, scratch
+  migration round trips, conflict refusal and history-safe downgrade tests passed.
+  Dependencies, compilation, whitespace, local links and disposable Redis PING passed.
+- [Current run report](runs/2026-10-28-lifecycle-implementation.md) includes phase
+  results, intermediate test correction, reproduction commands and scope limits.
+- Disposable test services removed. No production data, polling, live messages,
+  deployment, merge or automatic production conflict reconciliation.
+
+## Blockers and exact next action
+
+No failing validation gate remains. Review the main-targeting implementation PR,
+including migration and locking behavior. Do not merge/deploy in this task.
+Legacy multiple editable rows require explicit selection/reconciliation policy;
+production conflicting approvals would block migration and require separately
+approved resolution. Do not automatically choose records or rewrite history.
+A fresh task should fetch origin, verify branch/head/status, then read this handoff,
+contract, active implementation-plan section and current report before continuing.
+
+## Historical handoffs (superseded)
+
+Earlier branch names, policy questions, statuses and next actions below describe
+previous runs. They do not override the authorized lifecycle implementation above.
+
+# Previous handoff — planning documentation integration, 2026-10-27
 
 - Branch: `docs/integrate-lifecycle-plan-2026-10-27`; PR target: `main`.
 - Integration PR: [#6](https://github.com/tokeniyi/school-delivery-bot1/pull/6),
-  open and unmerged.
+  merged into main on 2026-10-27.
 - Fetched main: `6772ea12ee7e01bd8666590f6e67d59087450ef9`.
 - Fetched review branch: `00e410a3939fd6e133928a7e8a1f71249427e9db`.
 - [PR #4](https://github.com/tokeniyi/school-delivery-bot1/pull/4) merged into

@@ -66,3 +66,58 @@ status, preserving the original plans and unresolved product decisions. See the
 [current progress record](progress.md) and
 [integration report](runs/2026-10-27-planning-docs-main-integration.md).
 No lifecycle implementation, service validation rerun or merge is part of this task.
+
+## Active lifecycle implementation — 2026-10-28
+
+Authorized by the user after PR #6 merged into main at
+`f368a5be55d2e3815c6cd8be5f195d1bd14f981f`. Active branch:
+`fix/lifecycle-2026-10-28`. The earlier planning-only restriction describes the
+previous tasks; this section governs the new implementation.
+
+### Confirmed product decisions
+
+1. One student delivery request per parent's trip; each request has one approved trip.
+2. Approval automatically closes incompatible pending candidates, preserving rows
+   and a recorded reason, separately from admin rejection.
+3. Approved request/travel records are immutable through resubmission. Subsequent
+   submissions create new records, using existing pending/available draft behavior.
+4. Rejected pairs return to review only through an explicit action authorized by
+   the existing configured-admin convention, preserving prior reviews/rejection.
+
+5. User confirmed pending-review edits are allowed: close affected candidates and
+   require fresh review. Preserve reviewed details by superseding the source version
+   and creating a replacement row; ordinary matching uses the replacement only.
+
+No blocking pending-edit decision remains. Ambiguous multiple editable legacy rows must not be selected arbitrarily;
+fail clearly rather than introduce an active-row policy or reconcile legacy data.
+Unavailable-trip editing remains outside the documented available-trip upsert rule.
+Existing production conflicts must block migration, not be automatically repaired.
+
+### Bounded phases and measurable gates
+
+- P0 preparation/baseline: verify merged PR #6 and documents on fetched main;
+  reproduce 44 passed/1 skipped with disposable PostgreSQL/Redis and dummy/fake bots.
+- P1 red regressions: conflicting request/trip approvals and both approved-history
+  mutations must fail against unchanged application code. Record exact failures.
+- P2 schema/atomic lifecycle: add automatic-closure reason, immutable review event
+  history, and unique approved request/trip indexes; migrate safely with conflict
+  detection. Serialize allocation and review, close incompatible candidates and
+  preserve approved rows. Gate: P1 tests green plus closure/rejection/rollback tests.
+- P3 authorized reconsideration: explicit admin command/service; ordinary discovery
+  excludes previously considered pairs. Preserve every review event and audit;
+  prevent repeated or ineligible reopen. Gate: authorization, repeated reviews,
+  history and duplicate/reopen tests pass with fake messages only.
+- P4 contention/migrations: independent PostgreSQL connections with proven overlapping
+  transactions; exactly one successful conflicting approval and one approval audit.
+  Exercise approve/reject and resubmission contention, constraint enforcement and
+  migration upgrade/check/downgrade/re-upgrade/check on disposable data. No production
+  reconciliation. All failures investigated before completion.
+- P5 final: focused/full suites, dependencies, compilation, whitespace, documentation,
+  progress and uniquely dated report; commit/push branch and open main-targeting PR.
+  No merge, deployment, polling or live Telegram messages.
+
+Status: P0 passed (44 passed/1 skipped, 12.14s); P1 passed (four expected
+regression failures, 0.57s, unchanged application). P2 passed (6 tests); P3 passed (10 tests); P4 passed (20 lifecycle tests
+including pending-edit/approval contention and 4 migration tests). P5 validation passed (70 passed/1 skipped, 24.60s; metadata, dependencies,
+compilation, links and whitespace). PR #7 opened against main; P0–P5 complete. Each phase's result and relevant commits are recorded in
+progress and the lifecycle implementation run report before advancing.

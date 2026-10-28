@@ -22,6 +22,7 @@ from database.crud import (
     get_pending_matches,
     approve_match as crud_approve_match,
     reject_match as crud_reject_match,
+    reconsider_match as crud_reconsider_match,
 )
 from database.models import Match
 from services.matching import find_matches
@@ -97,7 +98,7 @@ class MatchingService:
         return matches
 
     @staticmethod
-    async def approve_match(match_id: int, admin_id: int) -> Match | None:
+    async def approve_match(match_id: int, admin_id: int, *, expected_revision: int | None = None) -> Match | None:
         """
         Approve a pending match: persist status changes and notify both parties.
 
@@ -115,7 +116,7 @@ class MatchingService:
             was not in pending_review status.
         """
         async with async_session() as session:
-            match = await crud_approve_match(session, match_id, admin_id=admin_id)
+            match = await crud_approve_match(session, match_id, admin_id=admin_id, expected_revision=expected_revision)
 
         if not match:
             return None
@@ -130,12 +131,12 @@ class MatchingService:
         return match
 
     @staticmethod
-    async def reject_match(match_id: int, admin_id: int) -> Match | None:
+    async def reject_match(match_id: int, admin_id: int, *, expected_revision: int | None = None) -> Match | None:
         """
-        Reject a pending match: persist status changes and notify both parties.
+        Reject a pending match without resetting resources; notify both parties.
 
         Steps:
-        1. Delegate DB update to database.crud.reject_match (resets statuses,
+        1. Delegate DB update to database.crud.reject_match (records rejection,
            records timestamp, writes audit log).
         2. Send rejection notifications to the student and parent.
 
@@ -148,7 +149,7 @@ class MatchingService:
             was not in pending_review status.
         """
         async with async_session() as session:
-            match = await crud_reject_match(session, match_id, admin_id=admin_id)
+            match = await crud_reject_match(session, match_id, admin_id=admin_id, expected_revision=expected_revision)
 
         if not match:
             return None
@@ -160,4 +161,17 @@ class MatchingService:
         await notify_parent_rejected(parent_telegram_id)
 
         logger.info(f"MatchingService: Match#{match_id} rejected by admin_id={admin_id}")
+        return match
+
+
+    @staticmethod
+    async def reconsider_match(match_id: int, admin_id: int) -> Match | None:
+        """Configured admins explicitly reopen an eligible rejected pair for review."""
+        from config import ADMIN_IDS
+        if admin_id not in ADMIN_IDS:
+            raise PermissionError("Only configured admins may reconsider matches")
+        async with async_session() as session:
+            match = await crud_reconsider_match(session, match_id, admin_id)
+        if match:
+            await notify_admin_match(match)
         return match

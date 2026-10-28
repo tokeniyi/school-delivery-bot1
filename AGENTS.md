@@ -64,7 +64,8 @@ A connection failure there is an environment limitation, not a failed assertion.
 Never run downgrade or test cleanup against shared/production data. There are no
 configured CI workflows or lint/type-check commands in this checkout.
 
-The expected current suite is **44 passed, 1 skipped**. The skip at
+The pre-lifecycle baseline was **44 passed, 1 skipped**. Read `docs/progress.md`
+for the current lifecycle suite and migration validation results. The skip at
 `tests/test_additional_flows.py:3` disables an obsolete module, not one active
 scenario. Rejection, duplicate prevention, admin authorization and notification
 failure scenarios have split replacements. Keep this module skipped until its
@@ -81,3 +82,13 @@ Read `docs/progress.md`, the latest dated report, and the implementation plan fi
 Verify branch/SHA and a clean tree, then execute the recorded next action. Distinguish
 fixed application defects, test repairs, environment blockers and deferred findings.
 Do not infer that a passing suite proves concurrency safety or production readiness.
+
+
+## Lifecycle changes (2026-10-28)
+
+Use `docs/lifecycle-decisions-2026-10-28.md` for confirmed policies. Do not copy
+historical unresolved decisions or next actions from earlier reports. Migration
+`a28c10` must fail on existing conflicting approvals; never automatically reconcile
+production data. Downgrade refuses to discard new lifecycle events. Migration tests
+create/drop fresh scratch databases on the explicitly configured disposable local
+PostgreSQL instance and require database-creation privileges.

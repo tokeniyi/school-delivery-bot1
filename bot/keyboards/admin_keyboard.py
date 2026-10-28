@@ -1,18 +1,18 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def get_admin_keyboard(match_id: int) -> InlineKeyboardMarkup:
+def get_admin_keyboard(match_id: int, review_revision: int = 1) -> InlineKeyboardMarkup:
     """Returns an InlineKeyboardMarkup with Approve and Reject buttons for a match."""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="✅ Approve",
-                    callback_data=f"approve_match_{match_id}"
+                    callback_data=f"approve_match_{match_id}_{review_revision}"
                 ),
                 InlineKeyboardButton(
                     text="❌ Reject",
-                    callback_data=f"reject_match_{match_id}"
+                    callback_data=f"reject_match_{match_id}_{review_revision}"
                 )
             ]
         ]

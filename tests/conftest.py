@@ -48,6 +48,7 @@ async def clean_db():
         matches_before = await conn.fetchval("SELECT COUNT(*) FROM matches")
         print(f"\n[clean_db] BEFORE: users={users_before}, reqs={reqs_before}, travels={travels_before}, matches={matches_before}")
         
+        await conn.execute("DELETE FROM match_events")
         await conn.execute("DELETE FROM audit_logs")
         await conn.execute("DELETE FROM matches")
         await conn.execute("DELETE FROM student_requests")
